@@ -10,8 +10,10 @@ assert.equal(built.status,0,built.stderr);
 
 test('build e imports usam caminhos relativos válidos em subdiretório do GitHub Pages',async()=>{
   const html=await readFile('dist/index.html','utf8');assert.match(html,/apagao-build/);assert.doesNotMatch(html,/(src|href)=["']\//);
-  const modules=['src/main.js','src/data.js','src/world.js','src/scenes/renderer.js','src/systems/simulation.js','src/systems/audio.js','src/save/storage.js'];
+  const modules=['src/main.js','src/data.js','src/world.js','src/scenes/renderer.js','src/systems/simulation.js','src/systems/audio.js','src/save/storage.js','src/ui/hud.js'];
   for(const file of modules){const text=await readFile('dist/'+file,'utf8');for(const match of text.matchAll(/from\s+['"]([^'"]+)['"]/g)){assert.ok(match[1].startsWith('.'));const url=new URL(match[1],`https://example.test/repositorio/${file}`);assert.ok(url.pathname.startsWith('/repositorio/'));await readFile('dist/'+url.pathname.slice('/repositorio/'.length));}}
+  assert.match(html,/<link rel="stylesheet" href="\.\/src\/ui\/hud\.css">/);
+  assert.ok((await readFile('dist/src/ui/hud.css','utf8')).includes('.game-vitals'));
 });
 test('HTML publicado tem metadados sociais absolutos e imagem OG 1200×630 existente',async()=>{
   const html=await readFile('dist/index.html','utf8'),publicUrl=SITE_URL,imageUrl=SOCIAL_IMAGE_URL;
@@ -64,7 +66,7 @@ test('service worker instala todos os recursos e atende cache sem rede, inclusiv
   cacheNames.add(prefix+'older-version');
   events.activate({waitUntil:p=>pending=p});await pending;
   assert.deepEqual(deleted,[prefix+'older-version']);
-  for(const resource of ['src/main.js','src/share.js','src/style.css','public/icon.svg','public/social-preview.png','src/systems/simulation.js']){
+  for(const resource of ['src/main.js','src/share.js','src/style.css','src/ui/hud.js','src/ui/hud.css','public/icon.svg','public/social-preview.png','src/systems/simulation.js']){
     let response;events.fetch({request:{method:'GET',url:origin+resource,mode:'cors'},respondWith:p=>response=p});const r=await response;assert.equal(r.status,200);assert.ok((await r.text()).length>0);
   }
   let navigation;events.fetch({request:{method:'GET',url:origin+'historias',mode:'navigate'},respondWith:p=>navigation=p});assert.match(await(await navigation).text(),/APAGÃO/);

@@ -3,7 +3,7 @@ import { nearest, canBuild, insideBuilding } from './world.js';
 import * as Sim from './systems/simulation.js';
 import { Renderer, itemIcon } from './scenes/renderer.js';
 import { updateMarkup } from './ui/dom.js';
-import { createVitalsMarkup, updateVitals } from './ui/hud.js';
+import { createHUDMarkup, updateVitals, vitalUnitCount } from './ui/hud.js';
 import { Sound } from './systems/audio.js';
 import { saveGame, loadGame, exportSave, importSave } from './save/storage.js';
 import { SITE_URL, SOCIAL_IMAGE_PATH } from './site-config.js';
@@ -264,24 +264,18 @@ function updateHUD(){
   const p=state.player;
   const hud=$('hud');
   if(!hud.dataset.ready){
-    updateMarkup(hud,`<div class="clock"><b><span class="clock-label"></span><small class="clock-total">/30</small></b><span class="clock-value"></span></div><div class="vitals">${createVitalsMarkup()}</div><div class="pocket"><strong></strong><small>EM ESPÉCIE</small></div><div class="weather"><b></b><small></small></div>${button('Ⅱ','pause','hud-pause','aria-label="Pausar"')}`);
+    updateMarkup(hud,createHUDMarkup(vitalUnitCount()));
     hud.dataset.ready='true';
   }
   const prologue=state.phase==='prologue';
-  const clockLabel=hud.querySelector('.clock-label'),clockTotal=hud.querySelector('.clock-total');
   const setText=(node,value)=>{if(node.textContent!==value)node.textContent=value;};
-  setText(clockLabel,prologue?'PRÓLOGO':`DIA ${String(state.day).padStart(2,'0')}`);
-  clockTotal.hidden=prologue;
-  setText(hud.querySelector('.clock-value'),prologue?`00:${String(Math.ceil(state.prologue)).padStart(2,'0')}`:clock());
-  setText(hud.querySelector('.pocket strong'),money(p.cash));
+  setText(hud.querySelector('[data-hud-day]'),prologue?'PRÓLOGO':`DIA ${String(state.day).padStart(2,'0')}`);
+  setText(hud.querySelector('.game-hud__clock-value'),prologue?`00:${String(Math.ceil(state.prologue)).padStart(2,'0')}`:clock());
+  setText(hud.querySelector('#money'),money(p.cash));
   const weatherName=`${state.weather.kind.toUpperCase()} · ${state.weather.temp}°`;
   const services=`${state.services.power?'LUZ ✓':'LUZ ×'} · ${state.services.water?'ÁGUA ✓':'ÁGUA ×'}`;
-  setText(hud.querySelector('.weather b'),weatherName);
-  setText(hud.querySelector('.weather small'),services);
-  if(updateVitals(hud,p)){
-    const heart=hud.querySelector('[data-vital="health"]');
-    heart.animate([{opacity:1},{opacity:.58},{opacity:1}],{duration:260,easing:'steps(2,end)'});
-  }
+  setText(hud.querySelector('.game-hud__weather'),`${weatherName} · ${services}`);
+  updateVitals(hud,p,vitalUnitCount());
   $('touch-attack').hidden=!Sim.nearestCombatTarget(state);
   $('countdown').hidden=!prologue||!!menu;
   if(prologue)updateMarkup($('countdown'),`<span>A CONEXÃO TERMINA EM</span><strong class="${state.prologue<10?'urgent':''}">00:${String(Math.ceil(state.prologue)).padStart(2,'0')}</strong>`);
