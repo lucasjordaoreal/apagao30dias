@@ -14,10 +14,14 @@ export class Renderer{
     this.ground=document.createElement('canvas');this.ground.width=WORLD.w*TILE;this.ground.height=WORLD.h*TILE;this.makeGround();
     this.light=document.createElement('canvas');this.visuals=new Map();this.lastTime=0;
     this.trees=[];for(let y=0;y<WORLD.h;y++)for(let x=0;x<WORLD.w;x++)if(treeAt(x,y))this.trees.push({x:x*TILE+12,y:y*TILE+18,variant:hash(x,y)});
-    this.resize();window.addEventListener('resize',()=>this.resize());
+    this.resize();window.addEventListener('resize',()=>this.resize());window.visualViewport?.addEventListener('resize',()=>this.resize());
+    this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(canvas);
   }
   resize(){
-    const scale=innerWidth<700?1.35:2;this.canvas.width=Math.ceil(innerWidth/scale);this.canvas.height=Math.ceil(innerHeight/scale);
+    const bounds=this.canvas.getBoundingClientRect(),scale=matchMedia('(pointer:coarse)').matches?1.5:2;
+    const width=Math.max(1,Math.ceil(bounds.width/scale)),height=Math.max(1,Math.ceil(bounds.height/scale));
+    if(this.canvas.width===width&&this.canvas.height===height)return;
+    this.canvas.width=width;this.canvas.height=height;
     this.c.imageSmoothingEnabled=false;this.light.width=this.canvas.width;this.light.height=this.canvas.height;
   }
   makeGround(){

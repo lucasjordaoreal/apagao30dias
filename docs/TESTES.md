@@ -78,3 +78,11 @@ npm run test:production
 ```
 
 `TEST_URL` pode mudar a origem dos testes de navegador, percurso e visual. O teste de produção abre e encerra seu próprio servidor em 4182, com cópias do build em `test-results/hosting`. Todos usam contextos temporários e isolados. Capturas completas e resultados de execução ficam em `test-results/`; evidências selecionadas desta rodada foram preservadas em `docs/imagens/auditoria-2026-11-04/`.
+
+## Responsividade móvel — 4 de novembro de 2026
+
+- Edge/Playwright validou 20 dimensões: retrato, paisagem, tablets e desktops, de 320 × 568 a 2560 × 1440. Sem overflow horizontal, canvas vazio ou erros JavaScript.
+- Em emulação com toque, o personagem andou de x=564 para x=671,7 usando joystick e corrida simultânea por outro dedo; soltura dos controles foi confirmada. Mochila abriu por toque e o painel permaneceu dentro da tela.
+- Percurso somente por toque no prólogo: joystick/corrida até o caixa, saque de R$ 1.500, movimento até o comércio e compra de mantimento; concluído em cerca de cinco segundos, com mais de 25 segundos restantes e sem erros.
+- Screenshots gerados e examinados em 320 × 568, 390 × 844, 768 × 1024, 844 × 390 e 2560 × 1440.
+- A emulação não substitui testes em aparelhos físicos; Safari iOS e Android reais ainda precisam ser validados.

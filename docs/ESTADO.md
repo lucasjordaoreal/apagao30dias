@@ -22,7 +22,7 @@ Este projeto começou em uma pasta vazia. A entrega é uma base integrada e jog�
 | Segurança | Tranca, reforços, iluminação, conversa e vigilância. O visitante verifica proteção antes de uma oportunidade de furto. |
 | Comunidade | Confiança, abastecimento, segurança, verba e atividade econômica; feira condicionada à confiança e circulação de recursos entre produtores e comerciante. |
 | Apresentação | Arte pixel original em código, janelas noturnas, luz de lanterna, chuva, partículas, galinhas e plantas visíveis. Sons sintéticos. |
-| Preferências | Volume geral, ambiente e efeitos separados, redução de efeitos e escala de interface. Layout responsivo e direcional por toque. |
+| Preferências | Volume geral, ambiente e efeitos separados, redução de efeitos e escala de interface. Layout responsivo, joystick virtual direcional, corrida e ações de toque. |
 | Persistência/build | IndexedDB/fallback, save versionado, revisão de gravação, JSON validado, build relativo, cache offline e workflow de Pages com deploy manual. |
 
 ## Limites e próximos incrementos
@@ -40,7 +40,7 @@ Este projeto começou em uma pasta vazia. A entrega é uma base integrada e jog�
 - Tratamento médico é um kit abstrato, sem medicamentos ou dosagens reais. Ferimentos têm estado e cuidados, mas falta ampliar os acontecimentos que os provocam. O modo Simulação ajusta consumo, não resolve essas simplificações.
 - Som tem passos, cliques, alertas e ambientação simples. Falta trilha musical e maior diversidade de pássaros, chuva, portas, cães e tensão noturna.
 - As escolhas afetam reputação, recursos, feira e título do final. A cena final é uma tela narrativa/estatística; falta a sequência cinematográfica do amanhecer.
-- Falta remapeamento de teclas, joystick analógico e validação em aparelhos de toque reais. A prioridade deste incremento é desktop. A interface foi inspecionada em oito resoluções, de 360 × 800 a 1920 × 1080.
+- Falta remapeamento de teclas e validação em aparelhos de toque reais. O joystick virtual oferece oito direções discretas. A interface foi inspecionada via Edge em 20 resoluções, de 320 × 568 a 2560 × 1440, incluindo orientação horizontal e tablets.
 - Não foi feita uma campanha manual de cinco horas. Foi realizado um ensaio contínuo de 183 segundos no Edge automatizado, insuficiente para excluir problemas de longa duração. A estratégia automatizada de recursos não inclui o custo de todos os trajetos, nem todas as combinações de más decisões.
 - Save/importação não são mecanismo antitrapaça criptográfico. Há uma campanha por origem. Gravações concorrentes usam revisão, identificador único, transação e, quando disponível, Web Locks; a aba desatualizada pausa e oferece exportação ou carregamento explícito. Uma cópia anterior válida pode ser recuperada, preservando o registro danificado.
 - GitHub Pages foi preparado, mas não publicado nem verificado em URL remota. O cache foi exercitado por teste automatizado e no navegador real: instalação, desligamento do servidor local, recarregamento, continuação e mapa funcionaram. Não foi alterada a conexão física do computador.

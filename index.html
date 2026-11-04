@@ -19,7 +19,17 @@
     <div id="notifications" aria-live="polite"></div>
     <div id="context" hidden></div>
     <footer id="toolbar" hidden></footer>
-    <div id="touch" hidden><div class="dpad"><button data-key="w" aria-label="Norte">↑</button><button data-key="a" aria-label="Oeste">←</button><button data-key="s" aria-label="Sul">↓</button><button data-key="d" aria-label="Leste">→</button></div><button id="touch-action">E</button></div>
+    <div id="touch" hidden>
+      <div id="joystick" role="group" aria-label="Joystick de movimento">
+        <span class="joystick-ring"></span>
+        <span id="joystick-knob"></span>
+      </div>
+      <div class="touch-actions">
+        <button id="touch-interact" type="button" aria-label="Interagir com o alvo próximo"><strong>E</strong><span>Interagir</span></button>
+        <button id="touch-run" type="button" aria-label="Correr enquanto pressionado" aria-pressed="false">⇧</button>
+        <button id="touch-inventory" type="button" data-act="inventory" aria-label="Abrir mochila">▣</button>
+      </div>
+    </div>
     <div id="overlay"></div>
     <input id="import-file" type="file" accept="application/json,.json" hidden>
   </main>

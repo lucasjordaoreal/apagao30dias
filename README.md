@@ -4,7 +4,7 @@
 
 30 segundos para sacar dinheiro e comprar reservas. Depois, 30 dias de 600 segundos ativos para administrar comida, água, descanso, dinheiro físico e relações locais.
 
-## Jogar no computador
+## Jogar no computador ou celular
 
 Requer Node.js 20 ou superior apenas para servir os arquivos durante o desenvolvimento. Nenhuma instalação de pacotes é necessária.
 
@@ -20,7 +20,7 @@ Não abra `index.html` com `file://`: os navegadores restringem módulos JavaScr
 
 ## Controles
 
-| Tecla | Ação |
+| Tecla / entrada | Ação |
 | --- | --- |
 | WASD / setas | Andar |
 | Shift | Correr, com maior gasto |
@@ -31,6 +31,7 @@ Não abra `index.html` com `file://`: os navegadores restringem módulos JavaScr
 | B | Construções; depois escolher e clicar no quintal |
 | F | Lanterna |
 | Esc | Pausa; cancela posicionamento |
+| Toque | Joystick para andar; segure ⇧ para correr; ação contextual, mochila e barra inferior |
 
 Inventário, trocas e mapa mantêm o relógio. Pausa, ajuda e configurações congelam a simulação. Sair da aba também pausa. Dormir recupera energia durante o tempo normal do jogo; não pula horas.
 

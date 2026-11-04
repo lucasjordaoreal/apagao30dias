@@ -6,13 +6,24 @@ import { updateMarkup } from './ui/dom.js';
 import { Sound } from './systems/audio.js';
 import { saveGame, loadGame, exportSave, importSave } from './save/storage.js';
 
-const $=id=>document.getElementById(id),canvas=$('world'),renderer=new Renderer(canvas),sound=new Sound();
+const $=id=>document.getElementById(id),canvas=$('world'),renderer=new Renderer(canvas),sound=new Sound(),joystick=$('joystick'),joystickKnob=$('joystick-knob');
 const money=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v/100);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icon=Object.fromEntries(Object.keys(ITEMS).map(k=>[k,itemIcon(k)]));
 const button=(text,act,cls='',extra='')=>`<button class="${cls}" data-act="${act}" ${extra}>${text}</button>`;
 const itemImg=id=>`<img class="item-icon" src="${icon[id]}" alt="">`;
 let state=null,saved=null,menu={type:'title'},keys=new Set(),placement=null,last=performance.now(),hudAt=0,autoAt=0,noticeId=0,lastPhase='',saving=null,lastDay=1,saveConflict=false,saveUnavailable=false,menuAt=0;
+const touchInputs=new Map();let joystickPointer=null;
+function clearInputs(){
+  keys.clear();touchInputs.clear();joystickPointer=null;joystickKnob.style.transform='translate(-50%, -50%)';
+  $('touch-run').setAttribute('aria-pressed','false');
+}
+function inputDown(key){return keys.has(key)||[...touchInputs.values()].some(input=>input.has(key));}
+function releaseTouchPointer(id){
+  touchInputs.delete(id);
+  if(joystickPointer===id){joystickPointer=null;joystickKnob.style.transform='translate(-50%, -50%)';}
+  $('touch-run').setAttribute('aria-pressed',String([...touchInputs.values()].some(input=>input.has('shift'))));
+}
 let preferences={volume:.25,ambience:1,effects:1,reduced:false,scale:1};try{preferences={...preferences,...JSON.parse(localStorage.getItem('apagao-settings')||'{}')};}catch{}
 preferences.volume=Math.max(0,Math.min(1,Number(preferences.volume)||0));preferences.scale=[.9,1,1.15].includes(preferences.scale)?preferences.scale:1;sound.volume=preferences.volume;document.documentElement.style.setProperty('--ui',preferences.scale);
 for(const channel of ['ambience','effects']){preferences[channel]=Number.isFinite(preferences[channel])?Math.max(0,Math.min(1,preferences[channel])):1;sound[channel]=preferences[channel];}
@@ -21,8 +32,8 @@ function notify(text,type='info'){
   const div=document.createElement('div');div.className=`notice ${type}`;div.textContent=text;$('notifications').append(div);setTimeout(()=>div.remove(),6500);while($('notifications').children.length>4)$('notifications').firstChild.remove();if(type==='danger'||type==='warning')sound.alert();
 }
 function apply(result){if(result){notify(result.message,result.ok?'success':'warning');sound.click();}if(menu)renderMenu();updateHUD();}
-function open(type,id=null){keys.clear();if(state)state.paused=['pause','settings','help','credits','confirm-new','new','tutorial'].includes(type);menu={type,id};renderMenu();$('overlay').querySelector('button:not(:disabled)')?.focus({preventScroll:true});}
-function close(){if(saveConflict){open('pause');return;}menu=null;updateMarkup($('overlay'),'');$('overlay').className='';if(state)state.paused=false;keys.clear();last=performance.now();canvas.focus({preventScroll:true});}
+function open(type,id=null){clearInputs();if(state)state.paused=['pause','settings','help','credits','confirm-new','new','tutorial'].includes(type);menu={type,id};renderMenu();$('overlay').querySelector('button:not(:disabled)')?.focus({preventScroll:true});}
+function close(){if(saveConflict){open('pause');return;}menu=null;updateMarkup($('overlay'),'');$('overlay').className='';if(state)state.paused=false;clearInputs();last=performance.now();updateHUD();canvas.focus({preventScroll:true});}
 function panel(title,subtitle,content,wide=false){
   $('overlay').className=`overlay panel-overlay ${wide?'wide':''}`;
   updateMarkup($('overlay'),`<section class="panel" role="dialog" aria-modal="true" aria-label="${esc(title)}"><header class="panel-head"><div><span class="eyebrow">SANTA AURORA · INTERIOR PAULISTA</span><h2>${esc(title)}</h2><p>${subtitle}</p></div>${button('×','close','close','aria-label="Fechar"')}</header><div class="panel-body">${content}</div><footer class="panel-foot"><span>${!state?'A HISTÓRIA AINDA NÃO COMEÇOU':state.paused?'TEMPO PAUSADO':'O TEMPO CONTINUA PASSANDO'}</span><span>ESC para fechar</span></footer></section>`);
@@ -116,7 +127,7 @@ function renderMenu(){
     panel(won?state.ending:'A cidade continua. Sua história termina.',won?'Trinta dias se passaram. O mundo não voltou ao que era. Mas você continua aqui.':`Causa: ${esc(state.deathCause)}`,`<div class="ending-banner">${won?'UM NOVO AMANHECER':'O ÚLTIMO SILÊNCIO'}</div><div class="stats-grid">${Object.entries({'Dias completos':won?30:state.day-1,'Tempo ativo':`${Math.floor(state.activeTime/60)} min`,'Porções consumidas':state.stats.food,'Água usada (L)':state.stats.water,'Dinheiro restante':money(state.player.cash+state.house.safeCash),'Negociações':state.stats.trades,'Pessoas ajudadas':state.stats.helped,'Galinhas criadas':state.stats.chickens,'Ovos produzidos':state.stats.eggs,'Colheitas':state.stats.harvests,'Ocorrências':state.stats.events,'Reputação':Math.round(state.town.trust)}).map(([k,v])=>`<div><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div><div class="menu-stack">${button('Exportar esta história','export','secondary')}${button('Começar outra história','new','primary')}${button('Voltar ao início','title','text-button')}</div>`,true);return;
   }
 }
-function controls(){return `<div class="controls"><div><kbd>W A S D</kbd><span>mover</span></div><div><kbd>SHIFT</kbd><span>correr</span></div><div><kbd>E</kbd><span>interagir</span></div><div><kbd>I</kbd><span>mochila</span></div><div><kbd>M</kbd><span>mapa</span></div><div><kbd>J</kbd><span>diário</span></div><div><kbd>B</kbd><span>construir</span></div><div><kbd>F</kbd><span>lanterna</span></div><div><kbd>ESC</kbd><span>pausar</span></div></div>`;}
+function controls(){return `<div class="controls"><div><kbd>W A S D</kbd><span>mover</span></div><div><kbd>SHIFT</kbd><span>correr</span></div><div><kbd>E</kbd><span>interagir</span></div><div><kbd>I</kbd><span>mochila</span></div><div><kbd>M</kbd><span>mapa</span></div><div><kbd>J</kbd><span>diário</span></div><div><kbd>B</kbd><span>construir</span></div><div><kbd>F</kbd><span>lanterna</span></div><div><kbd>ESC</kbd><span>pausar</span></div></div><p class="touch-help">No celular: mova pelo joystick, segure ⇧ para correr, use E para a ação próxima e ▣ para abrir a mochila.</p>`;}
 let draft={mode:'normal',seed:1};
 async function persist(manual=false){
   if(saving){await saving;return persist(manual);}if(!state)return true;if(saveConflict)return false;if(saveUnavailable&&!manual)return false;
@@ -198,9 +209,13 @@ function updateHUD(){
   updateMarkup($('hud'),`<div class="hud-brand">A<span>/ 30</span></div><div class="clock"><b>${state.phase==='prologue'?'PRÓLOGO':`DIA ${String(state.day).padStart(2,'0')}<small>/30</small>`}</b><span>${state.phase==='prologue'?`00:${String(Math.ceil(state.prologue)).padStart(2,'0')}`:clock()}</span></div><div class="vitals">${stat('SAÚDE',p.health,'#a7bb84')}${stat('SACIEDADE',p.food,'#d5b775')}${stat('HIDRATAÇÃO',p.water,'#80b8b8')}${stat('ENERGIA',p.energy,'#baa2c0')}</div><div class="pocket"><strong>${money(p.cash)}</strong><small>EM ESPÉCIE</small></div><div class="weather"><b>${state.weather.kind.toUpperCase()} · ${state.weather.temp}°</b><small>${state.services.power?'LUZ ✓':'LUZ ×'} · ${state.services.water?'ÁGUA ✓':'ÁGUA ×'}</small></div>${button('Ⅱ','pause','hud-pause','aria-label="Pausar"')}`);
   const prologue=state.phase==='prologue';$('countdown').hidden=!prologue||!!menu;
   if(prologue)updateMarkup($('countdown'),`<span>A CONEXÃO TERMINA EM</span><strong class="${state.prologue<10?'urgent':''}">00:${String(Math.ceil(state.prologue)).padStart(2,'0')}</strong>`);
-  updateMarkup($('objectives'),prologue?`<span class="eyebrow">OS ÚLTIMOS 30 SEGUNDOS</span><p class="${p.bank<150000?'done':''}">01 &nbsp; Saque dinheiro no banco →</p><p class="${state.stats.trades?'done':''}">02 &nbsp; Escolha reservas no mercado →</p><small>WASD mover · Shift correr · E interagir</small>`:`<span class="eyebrow">${esc(Sim.arc(state))}</span><p>${state.town.fair?'A feira está funcionando.':state.day<6?'Cuide de hoje. Prepare o amanhã.':'Ajude a organizar a feira.'}</p><small>Confiança ${Math.round(state.town.trust)} · ${insideBuilding(p.x,p.y)?.name||'Santa Aurora'}</small>`);
+  const movementHelp=matchMedia('(pointer:coarse)').matches?'Joystick mover · ⇧ correr · E ação':'WASD mover · Shift correr · E interagir';
+  updateMarkup($('objectives'),prologue?`<span class="eyebrow">OS ÚLTIMOS 30 SEGUNDOS</span><p class="${p.bank<150000?'done':''}">01 &nbsp; Saque dinheiro no banco →</p><p class="${state.stats.trades?'done':''}">02 &nbsp; Escolha reservas no mercado →</p><small>${movementHelp}</small>`:`<span class="eyebrow">${esc(Sim.arc(state))}</span><p>${state.town.fair?'A feira está funcionando.':state.day<6?'Cuide de hoje. Prepare o amanhã.':'Ajude a organizar a feira.'}</p><small>Confiança ${Math.round(state.town.trust)} · ${insideBuilding(p.x,p.y)?.name||'Santa Aurora'}</small>`);
   updateMarkup($('toolbar'),`<div class="toolbar-actions">${button('<kbd>I</kbd> Mochila','inventory')}${button('<kbd>M</kbd> Mapa','map')}${button('<kbd>J</kbd> Diário','journal')}${button('<kbd>B</kbd> Construir','build-menu')}${button(`<kbd>F</kbd> ${p.lantern?'Lanterna ligada':'Lanterna'}`,'lantern')}</div><div class="toolbar-right"><span>${Sim.load(state).toFixed(1)} / 22 kg</span><span>ESTRESSE ${Math.round(p.stress)} · EXPOSIÇÃO ${Math.round(p.exposure)}</span><span id="save-status">LOCAL</span></div>`);
   const n=nearest(state);$('context').hidden=!!menu||(!n&&!state.task&&!placement);
+  const interactionLabel=n?({npc:'Conversar',shop:'Comprar',door:'Entrar',build:'Cuidar',atm:'Sacar',bed:'Descansar',kitchen:'Cozinhar',tap:'Água',well:'Água'}[n.kind]||'Interagir'):'Interagir';
+  $('touch-interact').querySelector('span').textContent=interactionLabel;
+  $('touch-interact').setAttribute('aria-label',n?`${interactionLabel}: ${n.name}`:'Interagir com o alvo próximo');
   if(state.task){updateMarkup($('context'),`<div class="task"><span>${({sleep:'Descansando',cook:'Cozinhando',treat:'Filtrando e fervendo',work:'Trabalhando',patrol:'Organizando vigilância',build:'Construindo',salvage:'Recolhendo materiais'})[state.task.type]} · ${Math.ceil(state.task.remaining)} s</span><div class="progress"><i style="width:${(1-state.task.remaining/state.task.total)*100}%"></i></div>${button('Cancelar','cancel-task','tiny')}</div>`);}
   else if(placement)updateMarkup($('context'),`<kbd>CLIQUE</kbd> Posicionar ${RECIPES[placement].name} <small>Esc cancela</small>`);
   else if(n)updateMarkup($('context'),`${button(`<kbd>E</kbd> ${esc(n.name)}`,'interact','context-button')}`);
@@ -219,8 +234,9 @@ document.addEventListener('keydown',e=>{
   const shortcuts={e:'interact',i:'inventory',m:'map',j:'journal',b:'build-menu',f:'lantern'};if(shortcuts[key])action(shortcuts[key]);
 });
 document.addEventListener('keyup',e=>{const arrows={arrowup:'w',arrowdown:'s',arrowleft:'a',arrowright:'d'};keys.delete(arrows[e.key.toLowerCase()]||e.key.toLowerCase());});
-window.addEventListener('blur',()=>{keys.clear();if(state&&['prologue','survival'].includes(state.phase)&&!state.paused)open('pause');});
-document.addEventListener('visibilitychange',()=>{last=performance.now();if(document.hidden&&state){keys.clear();state.paused=true;persist();if(['prologue','survival'].includes(state.phase))open('pause');}});
+window.addEventListener('blur',()=>{clearInputs();if(state&&['prologue','survival'].includes(state.phase)&&!state.paused)open('pause');});
+window.addEventListener('orientationchange',clearInputs);
+document.addEventListener('visibilitychange',()=>{last=performance.now();if(document.hidden&&state){clearInputs();state.paused=true;persist();if(['prologue','survival'].includes(state.phase))open('pause');}});
 // Best effort only: closing a tab must never bypass revision checks.
 window.addEventListener('pagehide',()=>{if(state&&!saveConflict)void persist();});
 canvas.addEventListener('pointermove',e=>{
@@ -231,8 +247,25 @@ canvas.addEventListener('pointerdown',e=>{
   const r=canvas.getBoundingClientRect(),x=Math.floor(((e.clientX-r.left)/r.width*canvas.width+renderer.camera.x)/TILE),y=Math.floor(((e.clientY-r.top)/r.height*canvas.height+renderer.camera.y)/TILE);
   const result=Sim.construct(state,placement,x,y);apply(result);if(result.ok){placement=null;renderer.place=null;}
 });
-for(const b of document.querySelectorAll('[data-key]')){b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);if(!menu)keys.add(b.dataset.key);});for(const event of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(event,()=>keys.delete(b.dataset.key));}
-$('touch-action').addEventListener('click',()=>interact());
+function joystickMove(e){
+  if(e.pointerId!==joystickPointer)return;
+  const r=joystick.getBoundingClientRect(),radius=Math.min(r.width,r.height)*.36,dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),distance=Math.hypot(dx,dy),factor=distance>radius?radius/distance:1,x=dx*factor,y=dy*factor;
+  joystickKnob.style.transform=`translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+  const nx=x/radius,ny=y/radius,dead=.2,threshold=.34,active=new Set();
+  if(Math.hypot(nx,ny)>=dead){if(nx<=-threshold)active.add('a');if(nx>=threshold)active.add('d');if(ny<=-threshold)active.add('w');if(ny>=threshold)active.add('s');}
+  touchInputs.set(e.pointerId,active);
+}
+joystick.addEventListener('pointerdown',e=>{if(menu||joystickPointer!==null)return;e.preventDefault();joystickPointer=e.pointerId;joystick.setPointerCapture(e.pointerId);joystickMove(e);});
+joystick.addEventListener('pointermove',joystickMove);
+for(const event of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(event,e=>releaseTouchPointer(e.pointerId));
+for(const b of document.querySelectorAll('[data-key]')){
+  b.addEventListener('pointerdown',e=>{e.preventDefault();if(menu)return;b.setPointerCapture(e.pointerId);touchInputs.set(e.pointerId,new Set([b.dataset.key]));});
+  for(const event of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(event,e=>releaseTouchPointer(e.pointerId));
+}
+const runButton=$('touch-run');
+runButton.addEventListener('pointerdown',e=>{e.preventDefault();if(menu)return;runButton.setPointerCapture(e.pointerId);touchInputs.set(e.pointerId,new Set(['shift']));runButton.setAttribute('aria-pressed','true');});
+for(const event of ['pointerup','pointercancel','lostpointercapture'])runButton.addEventListener(event,e=>releaseTouchPointer(e.pointerId));
+$('touch-interact').addEventListener('click',interact);
 $('import-file').addEventListener('change',async e=>{
   const file=e.target.files[0];try{const imported=await importSave(file);if(saving)await saving;await saveGame(imported,{replace:true});state=imported;saveConflict=false;saveUnavailable=false;autoAt=state.activeTime;placement=null;renderer.place=null;saved=structuredClone(state);noticeId=state.serial;lastPhase=state.phase;lastDay=state.day;close();if(['won','dead'].includes(state.phase))open('ending');else open('pause');notify('Progresso importado e validado.','success');}catch(err){notify(`Importação recusada: ${err.message}`,'warning');}finally{e.target.value='';}
 });
@@ -242,7 +275,7 @@ function frame(now){
   if(state){
     if(menu?.anchor&&!Sim.playerCanReach(state,menu.anchor)){close();notify('A interação terminou: o alvo se afastou ou há uma parede no caminho.');}
     const phase=state.phase;
-    if(!menu&&!saveConflict)Sim.move(state,(keys.has('d')?1:0)-(keys.has('a')?1:0),(keys.has('s')?1:0)-(keys.has('w')?1:0),keys.has('shift'),dt);
+    if(!menu&&!saveConflict)Sim.move(state,(inputDown('d')?1:0)-(inputDown('a')?1:0),(inputDown('s')?1:0)-(inputDown('w')?1:0),inputDown('shift'),dt);
     else{state.player.moving=false;state.player.running=false;}
     if(!saveConflict)Sim.advance(state,dt);
     if(state.phase!==lastPhase){
@@ -250,7 +283,7 @@ function frame(now){
       if(state.phase==='survival'){
         close();const div=document.createElement('div');div.className='chapter-card';div.innerHTML='<small>30 SEGUNDOS DEPOIS</small><strong>DIA 1</strong><span>O mundo ficou offline.</span>';$('game').append(div);setTimeout(()=>div.remove(),3600);sound.alert();persist();
       }
-      if(['won','dead'].includes(state.phase)){keys.clear();open('ending');persist();}
+      if(['won','dead'].includes(state.phase)){clearInputs();open('ending');persist();}
     }
     if(lastDay!==state.day){lastDay=state.day;if(menu&&!['settings','new','tutorial'].includes(menu.type))renderMenu();persist();}
     for(const n of state.notices)if(n.id>noticeId){noticeId=n.id;notify(n.text,n.type);}
@@ -268,4 +301,3 @@ if('serviceWorker'in navigator&&document.querySelector('meta[name="apagao-build"
   document.body.dataset.offline='installing';
   navigator.serviceWorker.register('./sw.js').then(()=>navigator.serviceWorker.ready).then(()=>{document.body.dataset.offline='ready';notify('Jogo instalado no cache local. Esta versão está disponível sem conexão.','success');}).catch(()=>{document.body.dataset.offline='unavailable';notify('Cache offline indisponível. A partida continua funcionando online.','warning');});
 }
-
