@@ -8,13 +8,15 @@ export function random(s){let t=s.rng+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t
 export function log(s,text,type='info'){s.journal.unshift({day:s.day,time:Math.floor(s.dayTime),text,type});s.journal=s.journal.slice(0,120);s.notices.push({text,type,id:++s.serial});s.notices=s.notices.slice(-5);}
 export function createGame(seed=Date.now()>>>0,mode='normal'){
   const s={version:SAVE_VERSION,seed:seed>>>0,rng:seed>>>0,mode:Object.hasOwn(MODES,mode)?mode:'normal',serial:0,saveRevision:0,phase:'prologue',prologue:30,day:1,dayTime:0,activeTime:0,simulationRemainder:0,paused:false,
-    player:{x:23.5*TILE,y:24.7*TILE,dir:2,moving:false,running:false,health:100,food:100,water:100,energy:90,stress:10,exposure:0,sick:0,wound:0,cash:0,bank:150000,inventory:[],diet:[],lantern:false,battery:150,sleeping:false},
+    player:{x:23.5*TILE,y:24.7*TILE,dir:2,moving:false,running:false,health:100,food:100,water:100,energy:90,stress:10,exposure:0,sick:0,wound:0,cash:0,bank:150000,inventory:[],diet:[],lantern:false,battery:150,sleeping:false,weapon:'none',attackCooldown:0},
     storage:[],house:{locked:false,reinforced:0,watch:0,safeCash:0},weather:{kind:'sol',temp:27,rain:0},services:{power:true,water:true,powerDistricts:[true,true,true]},
     town:{trust:35,supply:100,security:65,treasury:500000,fair:false,population:20000,helped:0,economy:35},
+    social:{violence:0,criminality:0,fear:0},
+    blackMarket:{stock:{baton:1,knife:1,firearm:1,ammo:4},sales:0,scamCount:0,visited:false},
     builds:[{id:'b1',type:'bed',x:21,y:15,crop:null,moisture:55,fertility:70,weeds:0,health:100},{id:'b2',type:'bed',x:23,y:15,crop:{kind:'lettuce',age:45},moisture:65,fertility:75,weeds:0,health:100}],
     chickens:[],npcs:[],journal:[],notices:[],task:null,threat:null,eventAt:130,lastWorkDay:0,lastSalvageDay:0,lastForestDay:0,lastDonationDay:0,lastPatrolDay:0,scamDay:0,
     stats:{food:0,water:0,trades:0,helped:0,eggs:0,harvests:0,events:0,chickens:0,distance:0,spent:0,earned:0},deathCause:'',ending:''};
-  s.npcs=NPCS.map(n=>{const h=BUILDINGS.find(b=>b.id===n.home);return {...structuredClone(n),cash:n.cash*100,stock:Object.fromEntries(Object.entries(n.stock).map(([k,v])=>[k,Math.floor(v*MODES[s.mode].stock)])),x:(h.x+h.w/2)*TILE,y:(h.y+h.h+.7)*TILE,trust:35,state:'em casa',memory:[],needLevel:0,emotion:'apreensivo'};});
+  s.npcs=NPCS.map(n=>{const h=BUILDINGS.find(b=>b.id===n.home);return {...structuredClone(n),cash:n.cash*100,stock:Object.fromEntries(Object.entries(n.stock).map(([k,v])=>[k,Math.floor(v*MODES[s.mode].stock)])),x:(h.x+h.w/2)*TILE,y:(h.y+h.h+.7)*TILE,trust:35,state:'em casa',memory:[],needLevel:0,emotion:'apreensivo',combat:{alive:true,injury:0,fear:0,aggression:n.personality==='oportunista'?.72:n.personality==='prático'?.25:.05,armed:false,state:'calmo',hostileUntil:0,nextAttackAt:0,fleeUntil:0}};});
   add(s,'water',4,'storage');add(s,'canned',3,'storage');add(s,'rice',5,'storage');add(s,'beans',4,'storage');add(s,'fuel',5,'storage');add(s,'wood',12,'storage');add(s,'metal',5,'storage');add(s,'seed',3,'storage');add(s,'bread',2);add(s,'water',2);
   log(s,'06:00. Aviso urgente no celular: a conexão mundial será interrompida. Você tem 30 segundos. Vá ao caixa e ao mercado.');
   return s;
@@ -34,7 +36,9 @@ export function take(s,item,qty=1,where='inventory'){
   const target=where==='storage'?s.storage:s.player.inventory;
   const batches=target.filter(b=>b.item===item).sort((a,b)=>(a.expiry??1e9)-(b.expiry??1e9));
   for(const b of batches){const n=Math.min(b.qty,qty);b.qty-=n;qty-=n;if(!qty)break;}
-  if(where==='storage')s.storage=target.filter(b=>b.qty>0);else s.player.inventory=target.filter(b=>b.qty>0);return true;
+  if(where==='storage')s.storage=target.filter(b=>b.qty>0);else s.player.inventory=target.filter(b=>b.qty>0);
+  if(['baton','knife','firearm'].includes(item)&&!count(s,item)&&s.player.weapon===item)s.player.weapon='none';
+  return true;
 }
 export const hour=s=>s.phase==='prologue'?6:(6+s.dayTime/DAY*24)%24;
 export const isNight=s=>hour(s)>=20.4||hour(s)<6;
@@ -44,7 +48,8 @@ export function price(s,n,item,selling=false){
   const scarce=1+Math.max(0,40-(n.stock[item]||0))/100+Math.max(0,70-s.town.supply)/200;
   const relation=1-(n.trust-35)/500;
   const margin=n.personality==='oportunista'?1.45:1;
-  return Math.max(1,Math.round(base*100*scarce*relation*margin*(selling?.52:1)));
+  const crimeTax=1+(s.social?.criminality||0)/100;
+  return Math.max(1,Math.round(base*100*scarce*relation*margin*crimeTax*(selling?.52:1)));
 }
 export function withdraw(s,amount){
   if(s.phase!=='prologue')return fail('O caixa está sem conexão. O saldo digital permanece inacessível.');
@@ -58,6 +63,17 @@ function vendorReceive(n,batches){
   for(const b of batches){n.stock[b.item]=(n.stock[b.item]||0)+b.qty;
     const old=n.resaleLots.find(v=>v.item===b.item&&v.expiry===b.expiry&&v.condition===b.condition);
     if(old)old.qty+=b.qty;else n.resaleLots.push({item:b.item,qty:b.qty,expiry:b.expiry,condition:b.condition});
+  }
+}
+function combatStep(s){
+  for(const n of s.npcs){
+    if(n.combat?.alive===false||n.combat.hostileUntil<=s.activeTime||n.combat.nextAttackAt>s.activeTime)continue;
+    const distance=Math.hypot(n.x-s.player.x,n.y-s.player.y),range=n.combat.armed?105:38;
+    if(distance>range||!sameRoom(n,s.player))continue;
+    const damage=n.combat.armed?36:9;
+    s.player.health=clamp(s.player.health-damage);s.player.wound=clamp(s.player.wound+(n.combat.armed?24:7));s.player.stress=clamp(s.player.stress+9);
+    n.combat.nextAttackAt=s.activeTime+(n.combat.armed?3:2.5);
+    log(s,n.combat.armed?'A pessoa armada atacou. Seu ferimento exige cuidado imediato.':'A pessoa reagiu e você se feriu. Afaste-se ou interrompa o conflito.','danger');
   }
 }
 function vendorTake(n,item,qty){
@@ -77,6 +93,8 @@ function receiveFromVendor(s,n,item,qty){for(const b of vendorTake(n,item,qty))a
 const unfitVendor=(s,n,item)=>(n.resaleLots||[]).some(b=>b.item===item&&(b.condition<40||b.expiry!==null&&b.expiry<=s.day));
 export function trade(s,npcId,item,qty=1,sell=false){
   const n=s.npcs.find(n=>n.id===npcId);if(!n||!Object.hasOwn(ITEMS,item)||!Number.isInteger(qty)||qty<1)return fail('Negociação inválida.');
+  if(n.combat?.alive===false)return fail('Essa pessoa não pode mais negociar.');
+  if(n.trust<8)return fail('A relação foi rompida. Essa pessoa não negocia mais com você.');
   const amount=price(s,n,item,sell)*qty;
   if(sell){
     if(count(s,item)<qty)return fail('Você não tem essa quantidade.');
@@ -96,6 +114,7 @@ export function trade(s,npcId,item,qty=1,sell=false){
 }
 export function barter(s,npcId){
   const n=s.npcs.find(n=>n.id===npcId);if(!n)return fail('Morador não encontrado.');
+  if(n.combat?.alive===false||n.trust<8)return fail('Essa pessoa não pode ou não quer negociar com você.');
   const offer=n.id==='celia'?{give:'egg',g:6,get:'rice',q:10}:{give:n.need,g:2,get:Object.keys(n.stock).find(k=>k!==n.need&&n.stock[k]>=2),q:2};
   if(!offer.get||count(s,offer.give)<offer.g||(n.stock[offer.get]||0)<offer.q)return fail('Faltam itens para esta troca.');
   if(s.player.inventory.some(b=>b.item===offer.give&&(b.condition<40||(b.expiry!==null&&b.expiry<=s.day))))return fail('Alimento deteriorado não pode ser trocado.');
@@ -118,12 +137,15 @@ export function transfer(s,uid,toStorage=true,all=false){
   const from=toStorage?s.player.inventory:s.storage,b=from.find(b=>b.uid===uid);if(!b)return fail('Item ausente.');
   const qty=all?b.qty:1;if(!toStorage&&!capacity(s,b.item,qty))return fail('Sem espaço na mochila.');
   add(s,b.item,qty,toStorage?'storage':'inventory',b.expiry,b.condition);b.qty-=qty;
-  if(toStorage)s.player.inventory=from.filter(b=>b.qty>0);else s.storage=from.filter(b=>b.qty>0);return ok();
+  if(toStorage)s.player.inventory=from.filter(b=>b.qty>0);else s.storage=from.filter(b=>b.qty>0);
+  if(toStorage&&['baton','knife','firearm'].includes(b.item)&&!count(s,b.item)&&s.player.weapon===b.item)s.player.weapon='none';
+  return ok();
 }
 export function discard(s,uid,where='inventory'){
   const list=where==='storage'?s.storage:s.player.inventory,b=list.find(v=>v.uid===uid);
   if(!b)return fail('Lote não encontrado.');b.qty--;
   if(where==='storage')s.storage=list.filter(v=>v.qty>0);else s.player.inventory=list.filter(v=>v.qty>0);
+  if(where!=='storage'&&['baton','knife','firearm'].includes(b.item)&&!count(s,b.item)&&s.player.weapon===b.item)s.player.weapon='none';
   return ok('Uma unidade do lote selecionado foi descartada.');
 }
 export function startTask(s,type,duration,data={}){
@@ -151,6 +173,71 @@ export function treat(s){
 export function fill(s,source){
   if(source==='tap'&&!s.services.water)return fail('Sem pressão na rede. Tente o poço ou use sua reserva.');
   const item=source==='tap'?'water':'raw';if(!capacity(s,item))return fail('Mochila cheia.');add(s,item);return ok(source==='tap'?'1 L de água da rede armazenado em recipiente fechado.':'1 L coletado, ainda NÃO potável.');
+}
+const BLACK_MARKET_PRICES={baton:5500,knife:12000,firearm:65000,ammo:1600};
+export function buyBlackMarket(s,item){
+  if(s.phase!=='survival'||s.day<8)return fail('Essa oferta clandestina ainda não apareceu. Não é necessária para sobreviver.');
+  if(s.npcs.find(n=>n.id==='carlos')?.combat?.alive===false)return fail('O contato do mercado não está mais disponível.');
+  if(!Object.hasOwn(BLACK_MARKET_PRICES,item))return fail('Oferta indisponível.');
+  if((s.blackMarket.stock[item]||0)<1)return fail('O estoque acabou.');
+  if(s.player.cash<BLACK_MARKET_PRICES[item])return fail('Dinheiro em espécie insuficiente.');
+  if(!capacity(s,item))return fail('Sem espaço na mochila.');
+  s.blackMarket.visited=true;s.player.cash-=BLACK_MARKET_PRICES[item];s.npcs.find(n=>n.id==='carlos').cash+=BLACK_MARKET_PRICES[item];s.stats.spent+=BLACK_MARKET_PRICES[item];
+  if(item==='firearm'&&random(s)<.18){
+    s.blackMarket.scamCount++;s.social.criminality=clamp(s.social.criminality+2);s.player.stress=clamp(s.player.stress+8);
+    log(s,'A oferta clandestina era um golpe: o dinheiro sumiu e nenhum item foi entregue.','danger');
+    return ok('Golpe: dinheiro perdido, sem produto.');
+  }
+  s.blackMarket.stock[item]--;s.blackMarket.sales++;add(s,item);
+  log(s,`${ITEMS[item].name} comprado no mercado clandestino. A transação ficou registrada na cidade.`,'warning');
+  return ok(`${ITEMS[item].name} recebido. A procedência e os riscos são inteiramente ficcionais.`);
+}
+export function equipWeapon(s,item){
+  if(item==='none'){s.player.weapon='none';return ok('Você guardou o equipamento.');}
+  if(!['baton','knife','firearm'].includes(item)||count(s,item)<1)return fail('Equipamento indisponível.');
+  s.player.weapon=item;return ok(`${ITEMS[item].name} equipado. Ameaçar alguém pode causar ferimentos, retaliação e perda de confiança.`);
+}
+function sameRoom(a,b){return insideBuilding(a.x,a.y)?.id===insideBuilding(b.x,b.y)?.id;}
+export function nearestCombatTarget(s){
+  if(s.phase!=='survival')return null;
+  const p=s.player,armed=p.weapon==='firearm',range=armed?150:43,face=[[0,-1],[1,0],[0,1],[-1,0]][p.dir];
+  return s.npcs.filter(n=>n.combat?.alive!==false).map(n=>({...n,distance:Math.hypot(n.x-p.x,n.y-p.y)}))
+    .filter(n=>{
+      if(n.distance>range||!sameRoom(p,n))return false;
+      const dx=n.x-p.x,dy=n.y-p.y;if(n.distance&&((dx*face[0]+dy*face[1])/n.distance)<-.15)return false;
+      for(let d=8;d<n.distance-5;d+=8)if(blocked(p.x+dx*d/n.distance,p.y+dy*d/n.distance,s))return false;
+      return true;
+    }).sort((a,b)=>a.distance-b.distance)[0]||null;
+}
+export function attack(s){
+  if(s.phase!=='survival')return fail('O combate só está disponível durante a campanha.');
+  if(s.task)return fail('Conclua a atividade antes de entrar em conflito.');
+  if(s.player.attackCooldown>s.activeTime)return fail('Aguarde um instante antes de agir novamente.');
+  const target=nearestCombatTarget(s);if(!target)return fail('Nenhum morador ao alcance e à sua frente.');
+  const p=s.player,weapon=p.weapon,firearm=weapon==='firearm',cost=firearm?10:weapon==='none'?5:7;
+  if(p.energy<cost)return fail('Sem energia para agir.');
+  if(firearm&&!take(s,'ammo'))return fail('Sem munição. A ação não foi realizada.');
+  p.energy=clamp(p.energy-cost);p.attackCooldown=s.activeTime+1.25;
+  const damage=firearm?72:weapon==='knife'?34:weapon==='baton'?24:12;
+  const n=s.npcs.find(v=>v.id===target.id);n.combat.injury=clamp(n.combat.injury+damage);
+  n.trust=clamp(n.trust-(firearm?38:22));n.combat.fear=clamp(n.combat.fear+35);
+  n.memory.push(`Agressão sofrida no dia ${s.day}`);n.memory=n.memory.slice(-8);
+  s.social.violence=clamp(s.social.violence+(firearm?12:5));s.social.criminality=clamp(s.social.criminality+(firearm?8:2));
+  s.social.fear=clamp(s.social.fear+8);s.town.trust=clamp(s.town.trust-(firearm?8:4));s.town.security=clamp(s.town.security-2);
+  for(const witness of s.npcs){
+    if(witness.id===n.id||witness.combat?.alive===false||Math.hypot(witness.x-p.x,witness.y-p.y)>160||!sameRoom(witness,p))continue;
+    witness.combat.fear=clamp(witness.combat.fear+18);witness.trust=clamp(witness.trust-6);
+    witness.memory.push(`Presenciou uma agressão no dia ${s.day}`);witness.memory=witness.memory.slice(-8);
+    s.social.fear=clamp(s.social.fear+3);
+  }
+  if(n.combat.injury>=100){n.combat.alive=false;n.combat.state='morto';n.state='morto';n.trust=0;s.social.violence=clamp(s.social.violence+18);s.social.criminality=clamp(s.social.criminality+20);s.town.trust=clamp(s.town.trust-18);log(s,`${n.name} morreu após a agressão. As consequências sociais e econômicas são permanentes.`,'danger');}
+  else{
+    const retaliation=n.combat.armed ? .88 : n.combat.aggression;
+    if(random(s)<retaliation){n.combat.state='hostil';n.combat.hostileUntil=s.activeTime+9;n.combat.nextAttackAt=s.activeTime+1;}
+    else{n.combat.state='fugindo';n.combat.fleeUntil=s.activeTime+12;n.combat.hostileUntil=0;}
+    log(s,`${n.name} ${n.combat.state==='hostil'?'reagiu com violência':'se afastou assustado'}. Moradores próximos vão se lembrar do que aconteceu.`,'danger');
+  }
+  return ok(n.combat.alive?`${n.name} foi ferido. A cidade registrou a agressão.`:`${n.name} morreu. A cidade não esquecerá.`);
 }
 export function construct(s,type,tx,ty){
   if(s.phase!=='survival')return fail('Construa após o prólogo.');
@@ -198,6 +285,7 @@ export function community(s,action,npcId='beatriz'){
   if(s.phase!=='survival')return fail('Atividades comunitárias começam após o prólogo.');
   const n=s.npcs.find(n=>n.id===npcId);
   if(action==='donate'){
+    if(!n||n.combat?.alive===false||n.trust<8)return fail('Essa pessoa não pode ou não quer receber sua ajuda.');
     if(s.lastDonationDay===s.day)return fail('Você já contribuiu hoje.');const item=n.need;if(s.player.inventory.some(b=>b.item===item&&(b.condition<40||b.expiry!==null&&b.expiry<=s.day)))return fail('A ajuda precisa de alimentos em boas condicoes.');if(count(s,item)<2)return fail(`Leve 2 × ${ITEMS[item].name}.`);
     giveToVendor(s,n,item,2);n.needLevel=clamp(n.needLevel-25);n.trust=clamp(n.trust+10);s.town.trust=clamp(s.town.trust+4);s.town.supply=clamp(s.town.supply+2);s.town.economy=clamp(s.town.economy+3);s.lastDonationDay=s.day;s.stats.helped++;s.town.helped++;n.memory.push(`Recebeu ajuda no dia ${s.day}`);n.memory=n.memory.slice(-8);log(s,`${n.name} recebeu sua contribuição. A confiança da comunidade cresceu.`);return ok('Ajuda entregue.');
   }
@@ -277,7 +365,7 @@ function second(s){
       const alive=s.chickens.filter(c=>c.health>0);if(alive.length!==s.chickens.length){log(s,'Uma galinha não resistiu à falta de cuidados.','danger');s.chickens=alive;}
     }
   }
-  npcsStep(s);threatStep(s);
+  npcsStep(s);combatStep(s);threatStep(s);
   if(s.dayTime>=s.eventAt){event(s);s.eventAt=s.dayTime+100+Math.floor(random(s)*130);}
   if([10,25].includes(Math.floor(p.water))&&Math.floor(p.water+100/DAY*m.need*exertion)!==Math.floor(p.water))log(s,p.water<11?'Desidratação iminente. Beba água agora.':'Água abaixo de 25%. Use a rede, reserva ou trate a água do poço.','warning');
 }
@@ -296,8 +384,12 @@ function completeTask(s){
 function npcsStep(s){
   const h=hour(s);
   for(const n of s.npcs){
+    if(n.combat?.alive===false)continue;
+    if(n.combat.hostileUntil<=s.activeTime&&n.combat.fleeUntil<=s.activeTime)n.combat.state='calmo';
     const b=BUILDINGS.find(b=>b.id===n.home);let target;
-    if(h>=20||h<7){n.state=h>=22||h<6?'dormindo':'em casa';target=[(b.x+b.w/2)*TILE,(b.y+b.h-.5)*TILE];}
+    if(n.combat.hostileUntil>s.activeTime){n.state='revidando';target=[s.player.x,s.player.y];}
+    else if(n.combat.fleeUntil>s.activeTime){n.state='fugindo';const dx=n.x-s.player.x,dy=n.y-s.player.y,d=Math.max(1,Math.hypot(dx,dy));target=[clamp(n.x+dx/d*120,24,71*TILE),clamp(n.y+dy/d*120,24,53*TILE)];}
+    else if(h>=20||h<7){n.state=h>=22||h<6?'dormindo':'em casa';target=[(b.x+b.w/2)*TILE,(b.y+b.h-.5)*TILE];}
     else if(s.weather.kind==='temporal'){n.state='abrigando-se';target=[(b.x+b.w/2)*TILE,(b.y+b.h-.5)*TILE];}
     else if(n.needLevel>60&&h>11&&h<14){n.state='procurando recursos';target=[34*TILE,29*TILE];}
     else{n.state=n.id==='beatriz'&&s.town.fair?'organizando a feira':'trabalhando';target=n.work.map(v=>v*TILE);}
@@ -356,6 +448,7 @@ function newDay(s){
     for(const b of n.resaleLots||[])if(b.expiry!==null&&b.expiry<=s.day){n.stock[b.item]-=b.qty;b.qty=0;}if(n.resaleLots)n.resaleLots=n.resaleLots.filter(b=>b.qty>0);
     for(const item of ['bread','fruit','rice','beans','water'])if(n.stock[item]>0)vendorTake(n,item,1);
     n.needLevel=clamp(n.needLevel+7);n.emotion=n.needLevel>70?'preocupado':s.town.trust>60?'esperançoso':'apreensivo';
+    if(n.id==='carlos'&&s.day>=12)n.combat.armed=true;
     if(n.id==='joao'){for(const [k,q]of Object.entries({egg:4,veg:4,rice:3,beans:2}))n.stock[k]=(n.stock[k]||0)+q;}
     if(n.id==='celia')n.stock.veg=(n.stock.veg||0)+2;
     if(s.town.fair&&n.id==='antonio'&&s.day%3===0){
@@ -376,7 +469,7 @@ function newDay(s){
 export function dialogue(s,n){
   const remembered=n.memory.length?` Lembro da nossa última negociação no dia ${n.memory.at(-1).match(/dia (\d+)/i)?.[1]||s.day}.`:'';
   const lines={celia:s.day<6?'Trouxe umas mudas já crescidas. Semente precisa de tempo, viu?':'Não deixe o canteiro secar. E não viva só de folha: precisa de comida que sustente.',antonio:s.phase==='prologue'?'Vai querer levar o quê? Só dinheiro vivo, a rede já está oscilando.':`Vou trabalhar com o que tem. ${s.town.supply<60?'A reposição está difícil.':'Ainda tenho reserva no depósito.'}`,rafael:s.services.power?'Tem serviço de manutenção no mural. Pagam em cédulas.':'Luz não é internet. Hoje a falha é elétrica mesmo; vamos reparar o que der.',marina:s.player.sick?'Água segura e descanso são prioridade. Posso ajudar com os cuidados.':'Água do poço precisa de tratamento. Fervura não resolve contaminação química.',joao:'As aves precisam de água limpa, ração e abrigo. Uma galinha saudável não bota todo dia.',carlos:s.scamDay===s.day?'Não gostou da oferta? Tudo bem.':'Tenho uma oportunidade exclusiva para você. Melhor investigar antes de pagar.',beatriz:s.town.fair?'A feira está de pé. Obrigada por ajudar a manter o bairro unido.':'Se a gente juntar confiança e pequenos produtores, dá para organizar a feira.'};
-  return `${lines[n.id]}${n.trust>55?' Você tem sido uma pessoa de confiança.':remembered}`;
+  return `${lines[n.id]}${n.combat?.fear>25?' Não se aproxime. Eu me lembro do que você fez.':n.trust>55?' Você tem sido uma pessoa de confiança.':remembered}`;
 }
 export function buildAction(s,id,action){
   const b=s.builds.find(b=>b.id===id);if(!b)return fail('Objeto não encontrado.');
@@ -424,6 +517,9 @@ export function validateSave(value){
   safeTree(value);const s=structuredClone(value);
   // A estrutura base evita carregar objetos incompletos e valores fora de tipo.
   const template=createGame(1,s.mode);
+  for(const field of ['social','blackMarket'])if(!Object.hasOwn(s,field))s[field]=structuredClone(template[field]);
+  if(s.player&&typeof s.player==='object'&&!Array.isArray(s.player))for(const [field,defaultValue]of Object.entries(template.player))if(!Object.hasOwn(s.player,field))s.player[field]=structuredClone(defaultValue);
+  if(Array.isArray(s.npcs))for(const n of s.npcs)if(n&&typeof n==='object'&&!Array.isArray(n)&&!Object.hasOwn(n,'combat')){const base=template.npcs.find(v=>v.id===n.id);if(base)n.combat=structuredClone(base.combat);}
   function shape(v,t,path='save'){
     if(typeof t==='number'){if(typeof v!=='number'||!Number.isFinite(v)||v<0||v>1e12)throw new Error(`Valor inválido em ${path}.`);}
     else if(typeof t==='string'){if(typeof v!=='string'||v.length>2000)throw new Error(`Texto inválido em ${path}.`);}
@@ -460,11 +556,18 @@ export function validateSave(value){
 
   if(s.player.battery>600)throw new Error('Carga de pilhas invalida.');
   if(!Number.isInteger(s.player.dir)||s.player.dir>3||s.player.diet.some(k=>!Object.hasOwn(ITEMS,k))||s.player.diet.length>12)throw new Error('Jogador inconsistente.');
+  if(!['none','baton','knife','firearm'].includes(s.player.weapon)||!Number.isFinite(s.player.attackCooldown)||s.player.attackCooldown<0)throw new Error('Equipamento do jogador inválido.');
+  for(const key of ['violence','criminality','fear'])if(s.social[key]>100)throw new Error('Reputação social inválida.');
+  if(!Number.isInteger(s.blackMarket.sales)||s.blackMarket.sales<0||!Number.isInteger(s.blackMarket.scamCount)||s.blackMarket.scamCount<0||typeof s.blackMarket.visited!=='boolean')throw new Error('Mercado clandestino inválido.');
+  for(const item of ['baton','knife','firearm','ammo'])if(!Number.isInteger(s.blackMarket.stock[item])||s.blackMarket.stock[item]<0||s.blackMarket.stock[item]>20)throw new Error('Estoque clandestino inválido.');
   if(!['sol','nublado','chuva','temporal'].includes(s.weather.kind)||s.weather.rain>1||s.weather.temp>60||s.services.powerDistricts.length!==3||s.services.powerDistricts.some(v=>typeof v!=='boolean'))throw new Error('Ambiente invalido.');
   for(const key of ['trust','supply','security','economy'])if(s.town[key]>100)throw new Error('Comunidade invalida.');
   if(!Number.isInteger(s.town.treasury)||s.house.reinforced>3||s.house.watch>3)throw new Error('Recursos invalidos.');
   for(const k of ['lastWorkDay','lastSalvageDay','lastForestDay','lastDonationDay','lastPatrolDay','scamDay'])if(!Number.isInteger(s[k])||s[k]>s.day)throw new Error('Historico invalido.');
-  for(const n of s.npcs){if(n.memory.some(v=>typeof v!=='string'))throw new Error('Memoria social invalida.');n.memory=n.memory.slice(-8);if(n.dir!==undefined&&(!Number.isInteger(n.dir)||n.dir<0||n.dir>3))throw new Error('Direcao invalida.');}
+  for(const n of s.npcs){
+    if(n.memory.some(v=>typeof v!=='string'))throw new Error('Memoria social invalida.');n.memory=n.memory.slice(-8);if(n.dir!==undefined&&(!Number.isInteger(n.dir)||n.dir<0||n.dir>3))throw new Error('Direcao invalida.');
+    const c=n.combat;if(typeof c.alive!=='boolean'||typeof c.armed!=='boolean'||!['calmo','fugindo','hostil','morto'].includes(c.state)||c.injury>100||c.fear>100||c.aggression>1)throw new Error('Estado de conflito do morador inválido.');
+  }
   for(let i=0;i<s.builds.length;i++)for(let j=i+1;j<s.builds.length;j++)if(s.builds[i].x===s.builds[j].x&&s.builds[i].y===s.builds[j].y)throw new Error('Construcoes sobrepostas.');
   const animalIds=s.chickens.map(c=>c.id);if(new Set(animalIds).size!==animalIds.length||animalIds.some(id=>!Number.isInteger(id)||id<1||id>s.serial||ids.includes(id))||s.chickens.some(c=>c.age<0||c.age>10000)||s.chickens.length&&!s.builds.some(b=>b.type==='coop'))throw new Error('Plantel inconsistente.');
   for(const e of s.journal)if(!Number.isInteger(e.day)||e.day<1||e.day>s.day||e.time<0||e.time>DAY||!['info','warning','danger','success','chapter'].includes(e.type))throw new Error('Registro invalido.');

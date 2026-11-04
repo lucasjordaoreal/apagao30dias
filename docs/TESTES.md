@@ -2,7 +2,7 @@
 
 ## Resultado automatizado
 
-`npm run check` passou. `npm test` passou com **54 testes**, sem falhas. `npm run build` gera `dist/` com caminhos relativos e Service Worker versionado por conteúdo.
+`npm run check` passou. `npm test` passou com **61 testes**, sem falhas. `npm run build` gera `dist/` com caminhos relativos e Service Worker versionado por conteúdo.
 
 Cobertura de regras:
 
@@ -15,6 +15,7 @@ Cobertura de regras:
 - Construção atrasada até o fim do trabalho, materiais consumidos, sobreposição e armazenamento sem duplicação.
 - Trabalho pago a partir de caixa comunitário, rotinas/caminhos de NPCs, determinismo por semente e desistência de visitante diante da tranca.
 - Save/JSON, fallback sem IndexedDB, preservação de validade/estado e recusa de dados/tarefas adulterados.
+- Compatibilidade de saves anteriores aos dados de combate, testemunhas e reputação; retaliação armada, ferimentos persistentes, morte de NPC e golpes no mercado opcional.
 - Módulos e recursos relativos sob `/repositorio/`.
 - Instalação do cache completo e respostas sem rede em um ambiente simulado de Service Worker, incluindo navegação sob subdiretório.
 
@@ -86,6 +87,13 @@ npm run test:production
 - Percurso somente por toque no prólogo: joystick/corrida até o caixa, saque de R$ 1.500, movimento até o comércio e compra de mantimento; concluído em cerca de cinco segundos, com mais de 25 segundos restantes e sem erros.
 - Screenshots gerados e examinados em 320 × 568, 390 × 844, 768 × 1024, 844 × 390 e 2560 × 1440.
 - A emulação não substitui testes em aparelhos físicos; Safari iOS e Android reais ainda precisam ser validados.
+
+## Conflitos e HUD — 4 de novembro de 2026
+
+- `node --test tests/simulation.test.mjs`: 27 testes aprovados, incluindo orientação/alcance, energia e equipamento, reação de moradora pacífica, testemunha, preços após agressão, retaliação de NPC armado, morte persistente, migração de save e golpe na oferta clandestina.
+- `npm run test:browser`: teste em 390 × 844 com toque confirmado; quatro medidores acessíveis, 40 unidades pixeladas, estado parcial visível e ataque via botão de toque gravado no save. Um segundo contexto verifica o atalho X no desktop.
+- `npm run audit:visual`: 8 viewports entre 360 × 800 e 1920 × 1080 sem overflow, sobreposição ou erro. A auditoria mede a tela inicial; o HUD/ataque foi verificado no teste de navegador móvel.
+- Ainda não há teste em aparelho físico nem validação de todas as reações possíveis em campanha longa.
 
 ## Compartilhamento social
 

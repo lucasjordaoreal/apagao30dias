@@ -25,15 +25,18 @@ Não abra `index.html` com `file://`: os navegadores restringem módulos JavaScr
 | WASD / setas | Andar |
 | Shift | Correr, com maior gasto |
 | E | Interagir com o objeto ou morador próximo |
+| X | Atacar um morador à frente e ao alcance; consequências permanentes |
 | I | Inventário e consumo |
 | M | Mapa da cidade |
 | J | Diário e estado da comunidade |
 | B | Construções; depois escolher e clicar no quintal |
 | F | Lanterna |
 | Esc | Pausa; cancela posicionamento |
-| Toque | Joystick para andar; segure ⇧ para correr; ação contextual, mochila e barra inferior |
+| Toque | Joystick para andar; segure ⇧ para correr; ação contextual, ataque próximo, mochila e barra inferior |
 
 Inventário, trocas e mapa mantêm o relógio. Pausa, ajuda e configurações congelam a simulação. Sair da aba também pausa. Dormir recupera energia durante o tempo normal do jogo; não pula horas.
+
+Conflitos são opcionais e inteiramente ficcionais. Armas são abstratas, sem detalhes técnicos; agressões causam ferimentos, retaliação, medo entre testemunhas, perda de confiança e preços piores. Um mercado clandestino surge mais tarde e pode ser um golpe; não é necessário para vencer. Saves anteriores recebem defaults para os novos dados sociais e de combate.
 
 ## Primeiro dia
 

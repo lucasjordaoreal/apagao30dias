@@ -126,6 +126,7 @@ export class Renderer{
     rect(c,skin,x-4,y-21,8,8);rect(c,'#504736',x-4,y-22,8,4);rect(c,'#504736',x-5,y-20,2,5);rect(c,'#795a3b',x-4,y-23,7,2);
     if(dir===2){rect(c,'#3e4338',x-2,y-17,1,1);rect(c,'#3e4338',x+2,y-17,1,1);}if(dir===1)rect(c,'#3e4338',x+3,y-17,1,1);if(dir===3)rect(c,'#3e4338',x-4,y-17,1,1);if(dir===0)rect(c,'#504736',x-4,y-20,8,6);
     if(player){rect(c,'#d3bd84',x-6,y-22,12,2);rect(c,'#c2aa72',x-4,y-26,8,4);rect(c,'#7d7852',x-4,y-23,8,1);}
+    else if(p.combat?.state==='hostil'||p.combat?.state==='fugindo'){rect(c,p.combat.state==='hostil'?'#d87a69':'#80b8b8',x-1,y-29,3,3);rect(c,p.combat.state==='hostil'?'#d87a69':'#80b8b8',x-1,y-24,3,1);}
   }
   build(c,b,s,t){
     const x=b.x*TILE,y=b.y*TILE;
@@ -165,6 +166,7 @@ export class Renderer{
     for(const tr of this.trees)if(visible(tr.x,tr.y))objects.push({y:tr.y,draw:()=>this.tree(c,tr.x,tr.y,reduced?0:time,tr.variant)});
     for(const b of state.builds)if(visible(b.x*TILE,b.y*TILE))objects.push({y:b.y*TILE+(b.type==='coop'?46:24),draw:()=>this.build(c,b,state,time)});
     for(const n of state.npcs){
+      if(n.combat?.alive===false)continue;
       let v=this.visuals.get(n.id);if(!v||Math.hypot(v.x-n.x,v.y-n.y)>200){v={x:n.x,y:n.y};this.visuals.set(n.id,v);}else{const xx=v.x+(n.x-v.x)*smoothing,yy=v.y+(n.y-v.y)*smoothing;
         let clear=true;for(let i=0;i<=10;i++)if(blocked(v.x+(xx-v.x)*i/10,v.y+(yy-v.y)*i/10,state,true)){clear=false;break;}
         v.x=clear?xx:n.x;v.y=clear?yy:n.y;}

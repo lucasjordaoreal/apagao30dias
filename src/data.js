@@ -24,6 +24,10 @@ export const ITEMS = {
   feed: { name:'Ração · 1 kg', category:'Materiais', weight:1, volume:1.4, price:7, color:'#d6bb75', desc:'Uma galinha consome cerca de 120 g por dia.' },
   meds: { name:'Kit de cuidados', category:'Saúde', weight:.2, volume:.3, price:18, color:'#c78579', desc:'Cuida de ferimentos e auxilia a recuperação; não substitui água e comida.' },
   battery: { name:'Pilhas · par', category:'Equipamentos', weight:.1, volume:.1, price:8, color:'#c4b26d', desc:'Recarrega a autonomia da lanterna em 6 horas simuladas.' },
+  baton: { name:'Bastão improvisado', category:'Equipamentos', weight:1.2, volume:1.5, price:0, color:'#9a7951', desc:'Equipamento ficcional de combate corpo a corpo.' },
+  knife: { name:'Lâmina curta', category:'Equipamentos', weight:.35, volume:.2, price:0, color:'#9ca7a1', desc:'Equipamento ficcional de combate corpo a corpo.' },
+  firearm: { name:'Arma de fogo sem procedência', category:'Equipamentos', weight:1.4, volume:1, price:0, color:'#65716d', desc:'Equipamento ficcional de alto risco. Não inclui detalhes técnicos.' },
+  ammo: { name:'Munição · recurso abstrato', category:'Equipamentos', weight:.25, volume:.15, price:0, color:'#c4a765', desc:'Recurso abstrato usado apenas pelo sistema de jogo.' },
   seed: { name:'Sementes · envelope', category:'Sementes', weight:.02, volume:.03, price:5, color:'#99ae72', desc:'Escolha a espécie no canteiro. Crescimento em dias completos.' },
   seedling: { name:'Muda desenvolvida', category:'Sementes', weight:.15, volume:.3, price:9, color:'#719d69', desc:'Alface já com 45 dias. Permite colher durante a campanha.' }
 };

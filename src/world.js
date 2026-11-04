@@ -45,13 +45,13 @@ export function nearest(state) {
   const {x,y}=state.player;
   const building=insideBuilding(x,y);
   const objects=POINTS.filter(p=>!p.inside||p.inside===building?.id).map(p=>({...p,x:p.x*TILE,y:p.y*TILE}));
-  objects.push(...state.npcs.map(n=>({id:n.id,name:n.name,kind:'npc',x:n.x,y:n.y})));
+  objects.push(...state.npcs.filter(n=>n.combat?.alive!==false).map(n=>({id:n.id,name:n.name,kind:'npc',x:n.x,y:n.y})));
   objects.push(...state.builds.map(b=>({id:b.id,name:b.type==='bed'?'Canteiro':b.type==='coop'?'Galinheiro':b.type==='barrel'?'Reservatório':b.type==='compost'?'Composteira':b.type==='crate'?'Caixa de armazenamento':b.type==='reinforcement'?'Reforço doméstico':'Cerca',kind:'build',build:b,x:b.x*TILE+12,y:b.y*TILE+12})));
   return objects.map(p=>({...p,distance:Math.hypot(x-p.x,y-p.y)})).filter(p=>p.distance<43&&playerCanReach(state,p)).sort((a,b)=>a.distance-b.distance)[0];
 }
 export function playerCanReach(state,anchor){
   const target=anchor.kind==='npc'?state.npcs.find(n=>n.id===anchor.id):anchor;
-  if(!target)return false;const p=state.player,d=Math.hypot(p.x-target.x,p.y-target.y);if(d>=43)return false;
+  if(!target||target.combat?.alive===false)return false;const p=state.player,d=Math.hypot(p.x-target.x,p.y-target.y);if(d>=43)return false;
   if(anchor.kind==='npc'&&insideBuilding(p.x,p.y)?.id!==insideBuilding(target.x,target.y)?.id)return false;
   if(anchor.kind==='door')return true;
   for(let t=4;t<d-12;t+=4)if(blocked(p.x+(target.x-p.x)*t/d,p.y+(target.y-p.y)*t/d,state,false,!!anchor.inside,anchor.kind==='build'?anchor.id:null))return false;

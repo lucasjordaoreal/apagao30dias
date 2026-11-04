@@ -83,6 +83,50 @@ test('save serializado preserva simulação; formato corrompido é rejeitado',()
   S.advance(s,20);S.advance(copy,20);assert.equal(copy.player.health,s.player.health);assert.deepEqual(copy.npcs,s.npcs);
   for(const mutate of [v=>v.version=99,v=>v.player.cash=-1,v=>v.day=31,v=>v.player.inventory[0].item='hack',v=>v.npcs[0].stock.water=-5,v=>v.player.health=NaN,v=>delete v.storage,v=>v.dayTime=600]){const bad=structuredClone(s);mutate(bad);assert.throws(()=>S.validateSave(bad));}
 });
+test('save antigo recebe defaults de conflito sem perder dados do jogador',()=>{
+  const legacy=survival();for(const key of ['social','blackMarket'])delete legacy[key];
+  delete legacy.player.weapon;delete legacy.player.attackCooldown;for(const n of legacy.npcs)delete n.combat;
+  const restored=S.validateSave(legacy);assert.equal(restored.player.weapon,'none');assert.equal(restored.social.violence,0);assert.equal(restored.blackMarket.stock.firearm,1);assert.ok(restored.npcs.every(n=>n.combat.alive));
+});
+test('agressão desarmada assusta a vítima e testemunhas, reduz confiança e altera preços',()=>{
+  const s=survival();s.player.x=24;s.player.y=24;s.player.dir=1;s.npcs.forEach((n,i)=>{n.x=500+i*40;n.y=500;});
+  const target=s.npcs.find(n=>n.id==='celia'),witness=s.npcs.find(n=>n.id==='antonio');target.x=48;target.y=24;witness.x=72;witness.y=24;
+  const price=S.price(s,witness,'water'),result=S.attack(s);
+  assert.equal(result.ok,true);assert.equal(target.combat.injury,12);assert.equal(target.combat.state,'fugindo');
+  assert.equal(target.trust,13);assert.equal(witness.trust,29);assert.equal(s.town.trust,31);
+  assert.equal(s.social.violence,5);assert.equal(s.social.criminality,2);assert.ok(S.price(s,witness,'water')>price);
+  const saved=S.validateSave(JSON.parse(JSON.stringify(s)));assert.deepEqual(saved.social,s.social);assert.deepEqual(saved.npcs[0].combat,target.combat);
+});
+test('ataque exige um alvo visível à frente e energia suficiente',()=>{
+  const s=survival();s.player.x=24;s.player.y=24;s.player.dir=3;s.npcs.forEach((n,i)=>{n.x=500+i*40;n.y=500;});const target=s.npcs[0];target.x=48;target.y=24;
+  assert.equal(S.nearestCombatTarget(s),null);assert.equal(S.attack(s).ok,false);assert.equal(target.combat.injury,0);
+  s.player.dir=1;s.player.energy=4;assert.equal(S.nearestCombatTarget(s).id,target.id);assert.equal(S.attack(s).ok,false);assert.equal(target.combat.injury,0);
+});
+test('alvo armado pode retaliar e causar ferimento persistente',()=>{
+  const s=survival(7);s.player.x=24;s.player.y=24;s.player.dir=1;s.player.weapon='firearm';S.add(s,'ammo',2);
+  s.npcs.forEach((n,i)=>{n.x=500+i*40;n.y=500;});const target=s.npcs.find(n=>n.id==='carlos');target.x=48;target.y=24;target.combat.armed=true;
+  assert.equal(S.attack(s).ok,true);assert.equal(S.count(s,'ammo'),1);assert.equal(target.combat.state,'hostil');
+  S.advance(s,2);assert.ok(Math.abs(s.player.health-63.988)<.001);assert.equal(s.player.wound,24);
+});
+test('armas de jogo são opcionais, causam morte e deixam NPCs inacessíveis',()=>{
+  const s=survival();s.player.x=24;s.player.y=24;s.player.dir=1;s.player.weapon='firearm';S.add(s,'ammo',3);
+  s.npcs.forEach((n,i)=>{n.x=500+i*40;n.y=500;});const target=s.npcs[0];target.x=48;target.y=24;target.combat.aggression=0;
+  assert.equal(S.attack(s).ok,true);s.activeTime+=2;s.player.attackCooldown=0;target.combat.fleeUntil=0;target.combat.hostileUntil=0;target.x=48;
+  assert.equal(S.attack(s).ok,true);assert.equal(target.combat.alive,false);assert.equal(target.combat.injury,100);
+  assert.equal(S.trade(s,target.id,'water').ok,false);
+  const copy=S.validateSave(JSON.parse(JSON.stringify(s)));assert.equal(copy.npcs[0].combat.alive,false);assert.ok(copy.social.criminality>0);
+});
+test('mercado clandestino é tardio, opcional e pode resultar em golpe',()=>{
+  const early=survival();early.player.cash=100000;assert.equal(S.buyBlackMarket(early,'baton').ok,false);
+  const safe=survival();safe.day=8;safe.player.cash=100000;assert.equal(S.buyBlackMarket(safe,'baton').ok,true);assert.equal(S.count(safe,'baton'),1);assert.equal(safe.blackMarket.sales,1);
+  const scam=fresh(7);S.advance(scam,30);scam.day=8;scam.player.cash=100000;assert.match(S.buyBlackMarket(scam,'firearm').message,/Golpe/);assert.equal(S.count(scam,'firearm'),0);assert.equal(scam.blackMarket.scamCount,1);
+});
+test('equipamento só funciona enquanto estiver na mochila e guardar ou descartar desarma',()=>{
+  const s=survival();S.add(s,'baton');assert.equal(S.equipWeapon(s,'baton').ok,true);assert.equal(s.player.weapon,'baton');
+  const item=s.player.inventory.find(b=>b.item==='baton');assert.equal(S.transfer(s,item.uid,true).ok,true);assert.equal(s.player.weapon,'none');
+  const stored=s.storage.find(b=>b.item==='baton');assert.equal(S.transfer(s,stored.uid,false).ok,true);assert.equal(S.equipWeapon(s,'baton').ok,true);
+  const returned=s.player.inventory.find(b=>b.item==='baton');assert.equal(S.discard(s,returned.uid).ok,true);assert.equal(s.player.weapon,'none');
+});
 test('colisões de paredes e porta trancada respeitam o espaço',()=>{
   const s=survival();assert.equal(blocked(20*TILE,20*TILE,s),true);assert.equal(blocked(23.5*TILE,24*TILE,s),false);s.house.locked=true;assert.equal(blocked(23.5*TILE,24*TILE,s),true);assert.equal(blocked(23.5*TILE,23*TILE,s),false);
 });

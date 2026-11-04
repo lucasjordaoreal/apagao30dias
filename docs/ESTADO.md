@@ -15,6 +15,7 @@ Este projeto começou em uma pasta vazia. A entrega é uma base integrada e jog�
 | Cozinha e água | Preparação com insumos e tempo; rede/poço; água não tratada e quimicamente suspeita; filtração/fervura contextual. |
 | Economia | Compra, venda, caixa e estoque finitos, preços por escassez/personalidade/relação, escambo, ajuda, jornada paga e golpe investigável. |
 | Moradores | Sete NPCs persistentes com casas, necessidades, estoque, dinheiro, rotinas, caminhos em grade, relação e memória de interações. |
+| Conflitos | Ataque direcional com mãos ou equipamento ficcional, energia e intervalo de ação; moradores fogem ou revidam conforme perfil. A agressão pode ferir ou matar, testemunhas registram o episódio e confiança, medo, comércio e preços persistem. Um contato clandestino opcional surge no dia 8; a oferta de arma fictícia pode ser um golpe. Saves v1 antigos recebem defaults para os novos campos. |
 | Agricultura | Oito espécies selecionáveis, sementes/mudas, desenvolvimento em dias, umidade, fertilidade, calor, ervas, vitalidade, rega, composto e colheita. |
 | Aves | Abrigo, aquisição finita de aves adultas, alimentação/água/higiene, saúde e produção acumulada de ovos. |
 | Construção | Prévia na grade; materiais, tempo, área e distância; canteiro, galinheiro, reservatório, caixa, cerca, composteira e reforço/luminária. Desmontagem com recuperação parcial. |
@@ -23,6 +24,7 @@ Este projeto começou em uma pasta vazia. A entrega é uma base integrada e jog�
 | Comunidade | Confiança, abastecimento, segurança, verba e atividade econômica; feira condicionada à confiança e circulação de recursos entre produtores e comerciante. |
 | Apresentação | Arte pixel original em código, janelas noturnas, luz de lanterna, chuva, partículas, galinhas e plantas visíveis. Cartão social original, metadados estáticos Open Graph/X e botões para compartilhar e gerar cartões de resultados. Sons sintéticos. |
 | Preferências | Volume geral, ambiente e efeitos separados, redução de efeitos e escala de interface. Layout responsivo, joystick virtual direcional, corrida e ações de toque. |
+| HUD | Saúde, saciedade, hidratação e energia em unidades pixeladas vazias, parciais e completas, com valores e atributos acessíveis. |
 | Persistência/build | IndexedDB/fallback, save versionado, revisão de gravação, JSON validado, build relativo, cache offline e workflow de Pages com deploy manual. |
 
 ## Limites e próximos incrementos
@@ -37,10 +39,10 @@ Este projeto começou em uma pasta vazia. A entrega é uma base integrada e jog�
 - Cercas são peças de grade. Construções podem ser desmontadas e refeitas com perda de materiais; não há arrastar/realocar uma construção pronta. As caixas compartilham o armazenamento doméstico.
 - As oito culturas estão disponíveis, mas compartilham uma fórmula e arte vegetal básicas. Mandioca, tomate, feijão, cebolinha e couve não amadurecem em 30 dias a partir de sementes. As mudas são de alface.
 - A conservação por geladeira ainda é uma aproximação diária, sem curvas térmicas. Lotes revendidos, doados e trocados preservam validade e condição. O estoque inicial e a produção própria dos comerciantes ainda usam a abstração de estoque agregado; falta modelar a idade de toda essa reserva.
-- Tratamento médico é um kit abstrato, sem medicamentos ou dosagens reais. Ferimentos têm estado e cuidados, mas falta ampliar os acontecimentos que os provocam. O modo Simulação ajusta consumo, não resolve essas simplificações.
+- Tratamento médico é um kit abstrato, sem medicamentos ou dosagens reais. Ações de combate podem provocar ferimentos persistentes; moradores armados podem reagir e a violência pode levar à morte. Armas e munição não têm especificações técnicas e funcionam apenas como recursos abstratos de jogo.
 - Som tem passos, cliques, alertas e ambientação simples. Falta trilha musical e maior diversidade de pássaros, chuva, portas, cães e tensão noturna.
 - As escolhas afetam reputação, recursos, feira e título do final. A cena final é uma tela narrativa/estatística; falta a sequência cinematográfica do amanhecer.
-- Falta remapeamento de teclas e validação em aparelhos de toque reais. O joystick virtual oferece oito direções discretas. A interface foi inspecionada via Edge em 20 resoluções, de 320 × 568 a 2560 × 1440, incluindo orientação horizontal e tablets.
+- Falta remapeamento de teclas e validação em aparelhos de toque reais. O joystick virtual oferece oito direções discretas. A interface foi inspecionada via Edge em 20 resoluções, de 320 × 568 a 2560 × 1440, incluindo orientação horizontal e tablets; os novos controles de ataque ainda precisam entrar nessa matriz.
 - Não foi feita uma campanha manual de cinco horas. Foi realizado um ensaio contínuo de 183 segundos no Edge automatizado, insuficiente para excluir problemas de longa duração. A estratégia automatizada de recursos não inclui o custo de todos os trajetos, nem todas as combinações de más decisões.
 - Save/importação não são mecanismo antitrapaça criptográfico. Há uma campanha por origem. Gravações concorrentes usam revisão, identificador único, transação e, quando disponível, Web Locks; a aba desatualizada pausa e oferece exportação ou carregamento explícito. Uma cópia anterior válida pode ser recuperada, preservando o registro danificado.
 - GitHub Pages foi preparado, mas não publicado nem verificado em URL remota. O cache foi exercitado por teste automatizado e no navegador real: instalação, desligamento do servidor local, recarregamento, continuação e mapa funcionaram. Não foi alterada a conexão física do computador.
