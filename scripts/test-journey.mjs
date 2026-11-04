@@ -1,0 +1,14 @@
+import {chromium} from '@playwright/test';
+import assert from 'node:assert/strict';
+import {mkdir,writeFile} from 'node:fs/promises';
+const b=await chromium.launch({executablePath:process.env.EDGE_PATH||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});const errors=[];
+try{
+ const c=await b.newContext({viewport:{width:1366,height:768}}),p=await c.newPage();p.on('pageerror',e=>errors.push(e.message));await p.goto(process.env.TEST_URL||'http://127.0.0.1:4181');
+ await p.locator('[data-act="new"]').waitFor();await p.locator('[data-act="settings"]').click();await p.locator('#ambience').focus();await p.keyboard.press('Home');await p.locator('[data-act="apply-settings"]').click();assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem('apagao-settings')).ambience),0);
+ await p.locator('[data-act="new"]').click();await p.locator('[data-act="tutorial"]').click();await p.locator('[data-act="begin"]').click();await p.locator('#hud').waitFor({state:'visible'});
+ async function walkTo(text){await p.keyboard.down('Shift');await p.keyboard.down('d');try{await p.locator('#context').filter({hasText:text}).waitFor({state:'visible',timeout:8000});}finally{await p.keyboard.up('d');await p.keyboard.up('Shift');}await p.keyboard.press('e');}
+ await walkTo('Caixa');await p.locator('[data-act="withdraw:150000"]').click();await p.locator('[data-act="close"]').first().click();await walkTo(/Antônio/);await p.locator('[data-act="trade:antonio:canned:3:buy"]').click();await p.locator('[data-act="trade:antonio:water:3:buy"]').click();await mkdir('test-results',{recursive:true});await p.screenshot({path:'test-results/real-journey-market.png'});
+ await p.keyboard.press('Escape');await p.locator('[data-act="save"]').click();await p.waitForTimeout(100);const s=await p.evaluate(async()=>await(await import('./src/save/storage.js')).loadGame());assert.equal(s.player.cash,144900);assert.equal(s.player.bank,0);assert.equal(s.player.inventory.find(b=>b.item==='canned').qty,3);assert.equal(s.player.inventory.find(b=>b.item==='water').qty,5);assert.equal(s.phase,'prologue');
+ await p.reload();await p.locator('[data-act="continue"]').click();await p.waitForTimeout(200);assert.match(await p.locator('.pocket strong').textContent(),/1.449/);assert.deepEqual(errors,[]);
+ const report={route:'new game -> walk to ATM -> withdraw -> walk to market -> buy -> save -> reload -> continue',cash:s.player.cash,bank:s.player.bank,prologueRemaining:s.prologue,ambiencePreferenceSaved:true,errors};await writeFile('test-results/journey.json',JSON.stringify(report,null,2));console.log(report);
+}catch(e){console.error({errors});for(const c of b.contexts())for(const p of c.pages()){console.error(await p.locator('body').innerText());await p.screenshot({path:'test-results/journey-failure.png'});}throw e;}finally{await b.close();}

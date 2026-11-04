@@ -13,7 +13,7 @@ test('build e imports usam caminhos relativos válidos em subdiretório do GitHu
 });
 test('service worker instala todos os recursos e atende cache sem rede, inclusive em subcaminho',async()=>{
   const source=await readFile('dist/sw.js','utf8'),origin='https://example.test/repositorio/',cache=new Map(),events={};
-  const storage={open:async()=>({addAll:async paths=>{for(const p of paths){const key=new URL(p,origin).href,body=await readFile('dist/'+(p==='./'?'index.html':p.slice(2)));cache.set(key,new Response(body));}}}),keys:async()=>[],delete:async()=>true,match:async r=>cache.get(typeof r==='string'?r:r.url||r.href)?.clone()};
+  const storage={open:async()=>({match:async r=>cache.get(typeof r==='string'?r:r.url||r.href)?.clone(),addAll:async paths=>{for(const p of paths){const key=new URL(p,origin).href,body=await readFile('dist/'+(p==='./'?'index.html':p.slice(2)));cache.set(key,new Response(body));}}}),keys:async()=>[],delete:async()=>true,match:async r=>cache.get(typeof r==='string'?r:r.url||r.href)?.clone()};
   vm.runInNewContext(source,{self:{location:{origin:'https://example.test',href:origin+'sw.js'},clients:{claim:async()=>{}},addEventListener:(name,fn)=>events[name]=fn},caches:storage,URL,Response,fetch:async()=>{throw new Error('Sem rede');}});
   let pending;events.install({waitUntil:p=>pending=p});await pending;assert.ok(cache.size>=12);
   for(const resource of ['src/main.js','src/style.css','public/icon.svg','src/systems/simulation.js']){

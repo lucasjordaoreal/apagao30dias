@@ -1,0 +1,8 @@
+{
+  "route": "new game -> walk to ATM -> withdraw -> walk to market -> buy -> save -> reload -> continue",
+  "cash": 144900,
+  "bank": 0,
+  "prologueRemaining": 25.446599999996074,
+  "ambiencePreferenceSaved": true,
+  "errors": []
+}

@@ -1,0 +1,93 @@
+{
+  "report": [
+    {
+      "width": 1920,
+      "height": 1080,
+      "title": {
+        "scroll": 1080,
+        "height": 1080
+      },
+      "overlap": false,
+      "stable": true,
+      "bodyWidth": 1920
+    },
+    {
+      "width": 1600,
+      "height": 900,
+      "title": {
+        "scroll": 900,
+        "height": 900
+      },
+      "overlap": false,
+      "stable": true,
+      "bodyWidth": 1600
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "title": {
+        "scroll": 768,
+        "height": 768
+      },
+      "overlap": false,
+      "stable": true,
+      "bodyWidth": 1366
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "title": {
+        "scroll": 720,
+        "height": 720
+      },
+      "overlap": false,
+      "stable": true,
+      "bodyWidth": 1280
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "title": {
+        "scroll": 768,
+        "height": 768
+      },
+      "overlap": false,
+      "stable": true,
+      "bodyWidth": 1024
+    },
+    {
+      "width": 800,
+      "height": 600,
+      "title": {
+        "scroll": 600,
+        "height": 600
+      },
+      "overlap": false,
+      "stable": true,
+      "bodyWidth": 800
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "title": {
+        "scroll": 844,
+        "height": 844
+      },
+      "overlap": false,
+      "stable": true,
+      "bodyWidth": 390
+    },
+    {
+      "width": 360,
+      "height": 800,
+      "title": {
+        "scroll": 800,
+        "height": 800
+      },
+      "overlap": false,
+      "stable": true,
+      "bodyWidth": 360
+    }
+  ],
+  "errors": []
+}

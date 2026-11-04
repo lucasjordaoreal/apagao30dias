@@ -82,9 +82,11 @@ O workflow verifica sintaxe, executa testes, gera o build e publica `dist/`. Pus
 - `src/main.js` e `src/style.css`: controles, menus, HUD e apresentação.
 - `src/save/storage.js`: persistência, validação, importação e exportação.
 - `src/systems/audio.js`: efeitos e ambientação sintéticos.
-- `scripts/`: servidor local, verificação e build sem dependências.
+- `scripts/`: servidor, verificação e build com bibliotecas nativas; auditoria de navegador com Playwright apenas em desenvolvimento.
 - `tests/`: regras, simulação de campanhas, persistência e cache offline.
 
 As regras não dependem do Canvas ou do DOM. A renderização lê o estado, sem alterar a simulação. A semente e o estado do gerador pseudoaleatório são persistidos; não há progressão offline ou crescimento enquanto o jogo está fechado.
 
 Veja [o estado da entrega](docs/ESTADO.md), [as referências e simplificações](docs/REFERENCIAS.md) e [a verificação realizada](docs/TESTES.md). Esta versão não representa a conclusão de todos os requisitos do prompt mestre.
+
+Auditoria atualizada: [correções e evidências de 4 de novembro de 2026](docs/AUDITORIA-CONTINUACAO-2026-11-04.md). Os comandos de reprodução estão em [TESTES.md](docs/TESTES.md).

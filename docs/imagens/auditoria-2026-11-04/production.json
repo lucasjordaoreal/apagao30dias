@@ -1,0 +1,12 @@
+{
+  "scopes": [
+    "/a/",
+    "/b/"
+  ],
+  "caches": [
+    "apagao-scope-%2Fa%2F-386b006e20f5",
+    "apagao-scope-%2Fb%2F-386b006e20f5"
+  ],
+  "offlineReloadAndNewGame": true,
+  "errors": []
+}

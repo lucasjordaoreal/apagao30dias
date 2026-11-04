@@ -1,5 +1,5 @@
 import { WORLD, TILE, BUILDINGS, POINTS, ITEMS } from '../data.js';
-import { terrain, treeAt, rectContains, nearest } from '../world.js';
+import { terrain, treeAt, rectContains, nearest, blocked } from '../world.js';
 import { hour, isNight } from '../systems/simulation.js';
 
 const P={grass:'#7d975e',grassLight:'#8ca56b',grassDark:'#6c8753',ink:'#37423b',soil:'#a18b63',road:'#aab0a0',line:'#ddd8b6',wood:'#a17a52',roof:'#bd7859',cream:'#e7dbb8'};
@@ -50,14 +50,10 @@ export class Renderer{
     for(let x=19*TILE;x<28*TILE;x+=8){rect(c,'#d6ca9e',x,9*TILE,3,9);rect(c,'#a89a76',x,9*TILE+3,8,2);}
     for(let y=9*TILE;y<18*TILE;y+=8){rect(c,'#d6ca9e',19*TILE,y,3,7);rect(c,'#a89a76',19*TILE+1,y+2,2,8);}
     // Praça: bancos, fonte seca, canteiros e coreto.
-    for(const [x,y]of [[29,29],[32,31],[28,32]])this.bench(c,x*TILE,y*TILE);
-    const fx=30.7*TILE,fy=29.5*TILE;shadow(c,fx,fy+5,39,15);rect(c,'#9b9d83',fx-18,fy-10,36,19);rect(c,'#d3c8a3',fx-16,fy-12,32,16);rect(c,'#6f9290',fx-12,fy-10,24,11);rect(c,'#bdd0b8',fx-7,fy-8,4,1);rect(c,'#b5b598',fx-3,fy-24,6,22);rect(c,'#d9d3af',fx-7,fy-25,14,5);
     // Feira, propriedade rural e caminhos secundários.
-    for(let i=0;i<3;i++)this.stall(c,(29+i*2.5)*TILE,34*TILE,i);
     for(let j=0;j<5;j++)for(let i=0;i<12;i++){rect(c,'#7c7650',(58+i*.6)*TILE,(29+j)*TILE,9,3);rect(c,'#69844e',(58+i*.6)*TILE+2,(29+j)*TILE-3,4,5);}
-    for(const [x,y]of [[35,23],[38,17],[48,25],[17,25],[38,40],[56,16]])this.lamppost(c,x*TILE,y*TILE,false);
+
     // Poço coberto e materiais reaproveitáveis.
-    rect(c,'#868c77',35*TILE-10,29*TILE-7,20,14);rect(c,'#c2b99a',35*TILE-10,29*TILE-11,20,9);rect(c,'#3f625e',35*TILE-5,29*TILE-9,10,5);
     for(let i=0;i<8;i++){const x=18*TILE+hash(i,2)*45,y=36*TILE+hash(i,7)*40;rect(c,i%2?'#899089':'#a28059',x,y,14,4);}
     // Marcação da área inicial.
     label(c,'RUA DAS PAINEIRAS',29*TILE,27*TILE-3,7,'#737f71');
@@ -134,7 +130,8 @@ export class Renderer{
       if(b.crop){const progress=Math.min(1,b.crop.age/({lettuce:65,radish:30}[b.crop.kind]||90));for(let j=0;j<2;j++)for(let i=0;i<2;i++){const xx=x+7+i*11,yy=y+10+j*10,h=3+Math.floor(progress*8);rect(c,b.moisture<15?'#a7a064':'#568a51',xx-2,yy-h,5,h);rect(c,'#7fa862',xx-4,yy-h+2,8,3);if(progress>.4){rect(c,'#99b76b',xx-3,yy-h,5,3);rect(c,'#6f9d59',xx-5,yy-h+4,10,3);}if(b.crop.kind==='radish'&&progress>.7)rect(c,'#c17876',xx-1,yy-2,3,3);}}
     }else if(b.type==='coop'){
       shadow(c,x+14,y+19,37,13);rect(c,'#907347',x-4,y-11,32,31);rect(c,'#b79b62',x-2,y-12,28,31);rect(c,'#67785c',x+3,y+6,9,13);rect(c,'#b17453',x-7,y-22,38,12);for(let i=0;i<5;i++)rect(c,'#cf9668',x-5+i*7,y-21,2,9);rect(c,'#786d4c',x+18,y+2,7,11);if(b.eggs)rect(c,'#f3dfaf',x+20,y+8,3,3);
-      s.chickens.forEach((ch,i)=>{const xx=x-10+Math.sin(t*.0006+i*8)*18,yy=y+27+Math.cos(t*.0008+i*5)*8;this.chicken(c,xx,yy,t+i*700);});
+      for(let i=0;i<6;i++){rect(c,'#b29a66',x-9+i*9,y+44,2,8);}rect(c,'#c1ac79',x-9,y+47,47,2);
+      if(b===s.builds.find(v=>v.type==='coop'))s.chickens.forEach((ch,i)=>{const xx=x+10+Math.sin(t*.0006+i*8)*13,yy=y+34+Math.cos(t*.0008+i*5)*4;this.chicken(c,xx,yy,t+i*700);});
     }else if(b.type==='barrel'){
       shadow(c,x+12,y+23,25,8);rect(c,'#456f7a',x+3,y+2,20,22);rect(c,'#6d99a0',x+2,y,22,5);rect(c,'#2f5768',x+3,y+18,20,3);rect(c,'#96b4ac',x+5,y+5,3,11);rect(c,'#b7ba91',x+18,y+20,7,2);
     }else if(b.type==='fence'){
@@ -148,26 +145,35 @@ export class Renderer{
   chicken(c,x,y,t){const step=Math.round(Math.sin(t*.01));shadow(c,x,y+3,11,3);rect(c,'#c79a54',x-2,y+1,1,3+step);rect(c,'#c79a54',x+2,y+1,1,3-step);rect(c,'#e1d9b4',x-5,y-5,9,7);rect(c,'#f1e6c1',x-3,y-7,6,7);rect(c,'#e6d9b4',x+3,y-9,4,6);rect(c,'#ae6654',x+3,y-11,3,3);rect(c,'#d4a151',x+7,y-6,3,2);rect(c,'#3e4d41',x+5,y-8,1,1);}
   lamppost(c,x,y,on){shadow(c,x+5,y+1,15,5);rect(c,'#68776a',x-1,y-34,3,35);rect(c,'#536b61',x-5,y-35,11,3);rect(c,on?'#ebd58d':'#b8c4aa',x-4,y-42,9,7);rect(c,'#718274',x-5,y-44,11,3);}
   draw(s,time,reduced=false){
+    if(s)time=s.activeTime*1000;
     const c=this.c,w=this.canvas.width,h=this.canvas.height;this.t=time;
-    const smoothing=1-Math.exp(-Math.min(100,time-this.lastTime)/130);this.lastTime=time;
+    if(time<this.lastTime)this.visuals.clear();
+    const smoothing=1-Math.exp(-Math.max(0,Math.min(100,time-this.lastTime))/130);this.lastTime=time;
     const target=s?.player||{x:30*TILE,y:25*TILE};
     this.camera.x=Math.max(0,Math.min(WORLD.w*TILE-w,target.x-w/2));this.camera.y=Math.max(0,Math.min(WORLD.h*TILE-h,target.y-h*.56));
-    const cx=Math.round(this.camera.x),cy=Math.round(this.camera.y);
+    this.camera.x=Math.round(this.camera.x);this.camera.y=Math.round(this.camera.y);
+    const cx=this.camera.x,cy=this.camera.y;
     c.setTransform(1,0,0,1,0,0);rect(c,P.grass,0,0,w,h);c.drawImage(this.ground,-cx,-cy);c.save();c.translate(-cx,-cy);
     const state=s||{player:target,phase:'prologue',services:{power:true},dayTime:200,builds:[],chickens:[],npcs:[],weather:{rain:0},house:{locked:false}};
     const visible=(x,y,pad=80)=>x>cx-pad&&y>cy-pad&&x<cx+w+pad&&y<cy+h+pad;
     const objects=[];
     for(const b of BUILDINGS)if(visible((b.x+b.w/2)*TILE,(b.y+b.h)*TILE,220))objects.push({y:rectContains(b,state.player.x,state.player.y,-3)?-10000:(b.y+b.h)*TILE-8,draw:()=>this.building(c,b,state,time)});
     for(const tr of this.trees)if(visible(tr.x,tr.y))objects.push({y:tr.y,draw:()=>this.tree(c,tr.x,tr.y,reduced?0:time,tr.variant)});
-    for(const b of state.builds)if(visible(b.x*TILE,b.y*TILE))objects.push({y:b.y*TILE+24,draw:()=>this.build(c,b,state,time)});
+    for(const b of state.builds)if(visible(b.x*TILE,b.y*TILE))objects.push({y:b.y*TILE+(b.type==='coop'?46:24),draw:()=>this.build(c,b,state,time)});
     for(const n of state.npcs){
-      let v=this.visuals.get(n.id);if(!v||Math.hypot(v.x-n.x,v.y-n.y)>200){v={x:n.x,y:n.y};this.visuals.set(n.id,v);}else{v.x+=(n.x-v.x)*smoothing;v.y+=(n.y-v.y)*smoothing;}
+      let v=this.visuals.get(n.id);if(!v||Math.hypot(v.x-n.x,v.y-n.y)>200){v={x:n.x,y:n.y};this.visuals.set(n.id,v);}else{const xx=v.x+(n.x-v.x)*smoothing,yy=v.y+(n.y-v.y)*smoothing;
+        let clear=true;for(let i=0;i<=10;i++)if(blocked(v.x+(xx-v.x)*i/10,v.y+(yy-v.y)*i/10,state,true)){clear=false;break;}
+        v.x=clear?xx:n.x;v.y=clear?yy:n.y;}
       if(visible(v.x,v.y)&&(!insideOther(n,state.player)||insideOther(n,state.player)==='same'))objects.push({y:v.y,draw:()=>this.person(c,{...n,x:v.x,y:v.y},time)});
     }
     if(s)objects.push({y:s.player.y,draw:()=>this.person(c,s.player,time,true)});
     if(s?.threat)objects.push({y:s.threat.y,draw:()=>this.person(c,{...s.threat,color:'#727d70',skin:'#b78d6a',moving:true,dir:3},time)});
+    for(const [x,y]of [[35,23],[38,17],[48,25],[17,25],[38,40],[56,16]])if(visible(x*TILE,y*TILE))objects.push({y:y*TILE,draw:()=>this.lamppost(c,x*TILE,y*TILE,isNight(state)&&state.services.power)});
+    for(const [x,y]of [[29,29],[32,31],[28,32]])objects.push({y:y*TILE+7,draw:()=>this.bench(c,x*TILE,y*TILE)});
+    for(let i=0;i<3;i++)objects.push({y:34*TILE+6,draw:()=>this.stall(c,(29+i*2.5)*TILE,34*TILE,i)});
+    objects.push({y:29.5*TILE+9,draw:()=>{const fx=30.7*TILE,fy=29.5*TILE;shadow(c,fx,fy+5,39,15);rect(c,'#9b9d83',fx-18,fy-10,36,19);rect(c,'#d3c8a3',fx-16,fy-12,32,16);rect(c,'#6f9290',fx-12,fy-10,24,11);rect(c,'#bdd0b8',fx-7,fy-8,4,1);rect(c,'#b5b598',fx-3,fy-24,6,22);rect(c,'#d9d3af',fx-7,fy-25,14,5);}},{y:29*TILE+7,draw:()=>{rect(c,'#868c77',35*TILE-10,29*TILE-7,20,14);rect(c,'#c2b99a',35*TILE-10,29*TILE-11,20,9);rect(c,'#3f625e',35*TILE-5,29*TILE-9,10,5);}});
     objects.sort((a,b)=>a.y-b.y);for(const o of objects)o.draw();
-    for(const [x,y]of [[35,23],[38,17],[48,25],[17,25],[38,40],[56,16]])if(visible(x*TILE,y*TILE))this.lamppost(c,x*TILE,y*TILE,isNight(state)&&state.services.power);
+
     if(s){
       const n=nearest(s);if(n){const yy=n.y-29+(reduced?0:Math.sin(time*.004)*2);rect(c,'#203d37',n.x-8,yy-9,16,14);label(c,'E',n.x,yy+1,9,'#f0d39b');}
       // Limites et prévia de construção seguem a grade usada pela simulação.

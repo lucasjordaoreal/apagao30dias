@@ -2,7 +2,7 @@
 
 ## Resultado automatizado
 
-`npm run check` passou. `npm test` passou com **26 testes**, sem falhas. `npm run build` gera `dist/` com caminhos relativos e Service Worker versionado por conteúdo.
+`npm run check` passou. `npm test` passou com **50 testes**, sem falhas. `npm run build` gera `dist/` com caminhos relativos e Service Worker versionado por conteúdo.
 
 Cobertura de regras:
 
@@ -22,7 +22,7 @@ O teste de campanha exercita **9 campanhas completas**: sementes 42, 2026 e 710 
 
 **Limite desse teste:** ações são chamadas diretamente nas regras. Ele não computa todos os percursos nem disponibilidade espacial de cada comerciante. Verifica viabilidade de recursos e consistência temporal, não uma garantia de vitória para qualquer estratégia. A aceleração ocorre apenas no processo de testes; não existe botão ou parâmetro de aceleração na interface distribuída.
 
-## Verificação real no navegador
+## Verificação real no navegador — registro da entrega inicial
 
 Servidor HTTP local respondeu 200. Fluxos executados na prévia interna:
 
@@ -44,3 +44,37 @@ A inspeção identificou e levou à correção do personagem oculto pelo piso no
 Não foi concluído um ensaio manual de cinco horas, nem teste em aparelho móvel real, nem publicação remota no GitHub Pages. A matriz completa de interações domésticas e eventos noturnos foi testada principalmente pelas regras, não integralmente por cliques no navegador. Nenhum commit ou deploy foi realizado.
 
 Capturas da verificação: [tela inicial](imagens/tela-inicial.png) e [interior e HUD](imagens/jogo-desktop.png).
+
+
+## Continuação em 4 de novembro de 2026
+
+O relatório atualizado, com evidências e limites, está em [AUDITORIA-CONTINUACAO-2026-11-04.md](AUDITORIA-CONTINUACAO-2026-11-04.md).
+
+- 50 testes de regras/regressão aprovados, incluindo nove campanhas completas de regras.
+- Edge real via Playwright: concorrência entre abas, com e sem Web Locks; 300 ciclos IndexedDB; recuperação; falha de gravação; fallback LocalStorage; movimento; colisão; pausa; foco e atualização de painel.
+- Percurso real por teclado e menus: banco, saque, mercado, compras, salvar, recarregar e continuar.
+- Oito resoluções com capturas e verificação de limites/foco; cenas de interior, quintal, comércio e temporal noturno.
+- Produção em dois subdiretórios da mesma origem: caches distintos e nova partida após recarga offline.
+- Ensaio contínuo de 183 segundos, 14 salvamentos e nenhum erro de execução. Não equivale a cinco horas nem a perfil completo de memória.
+
+Para reproduzir no Windows, instale as dependências de desenvolvimento com `npm ci`. Os scripts usam o Edge instalado; `EDGE_PATH` permite informar outro executável Chromium compatível. Não usam o perfil pessoal do navegador.
+
+```powershell
+npm run check
+npm test
+npm run build
+$env:PORT='4181'
+npm run dev
+```
+
+Com esse servidor aberto, em outro terminal:
+
+```powershell
+npm run test:browser
+npm run test:journey
+npm run audit:visual
+npm run test:soak
+npm run test:production
+```
+
+`TEST_URL` pode mudar a origem dos testes de navegador, percurso e visual. O teste de produção abre e encerra seu próprio servidor em 4182, com cópias do build em `test-results/hosting`. Todos usam contextos temporários e isolados. Capturas completas e resultados de execução ficam em `test-results/`; evidências selecionadas desta rodada foram preservadas em `docs/imagens/auditoria-2026-11-04/`.

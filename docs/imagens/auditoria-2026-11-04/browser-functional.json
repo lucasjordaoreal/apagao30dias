@@ -1,0 +1,34 @@
+{
+  "results": [
+    "Concurrent tabs: one atomic winner, stale writer rejected",
+    {
+      "cycles": 300,
+      "delta": 300
+    },
+    {
+      "recovery": {
+        "before": 302,
+        "after": 303,
+        "cash": 298,
+        "journal": "Progresso recuperado da cópia anterior. O registro original foi preservado."
+      }
+    },
+    {
+      "failure": {
+        "error": "QuotaExceededError",
+        "unchanged": true
+      }
+    },
+    "IndexedDB revision check also works without Web Locks",
+    "LocalStorage fallback recovers previous copy and preserves damaged data",
+    "Keyboard movement, release, menus and focus remain responsive",
+    "Canvas animation freezes exactly during pause",
+    "Canvas animation resumes after pause",
+    "Player cannot walk through refrigerator in real UI",
+    "Rain updates reservoir panel without replacing its focused button",
+    "Dialog tab focus and native Space button activation work",
+    "Temporary storage failure allows play and explicit save retry",
+    "No uncaught browser errors"
+  ],
+  "errors": []
+}

@@ -1,0 +1,10 @@
+{
+  "seconds": 183.416,
+  "cycles": 14,
+  "frames": 32460,
+  "p95FrameMs": 5.700000000000728,
+  "longTasks": 15,
+  "initialHeap": 3387249,
+  "finalHeap": 5018708,
+  "errors": []
+}

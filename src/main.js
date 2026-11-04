@@ -2,6 +2,7 @@ import { ITEMS, CROPS, NPCS, RECIPES, MODES, DAY, TILE } from './data.js';
 import { nearest, canBuild, insideBuilding } from './world.js';
 import * as Sim from './systems/simulation.js';
 import { Renderer, itemIcon } from './scenes/renderer.js';
+import { updateMarkup } from './ui/dom.js';
 import { Sound } from './systems/audio.js';
 import { saveGame, loadGame, exportSave, importSave } from './save/storage.js';
 
@@ -11,25 +12,26 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const icon=Object.fromEntries(Object.keys(ITEMS).map(k=>[k,itemIcon(k)]));
 const button=(text,act,cls='',extra='')=>`<button class="${cls}" data-act="${act}" ${extra}>${text}</button>`;
 const itemImg=id=>`<img class="item-icon" src="${icon[id]}" alt="">`;
-let state=null,saved=null,menu={type:'title'},keys=new Set(),placement=null,last=performance.now(),hudAt=0,autoAt=0,noticeId=0,lastPhase='',saving=false,lastDay=1;
-let preferences={volume:.25,reduced:false,scale:1};try{preferences={...preferences,...JSON.parse(localStorage.getItem('apagao-settings')||'{}')};}catch{}
+let state=null,saved=null,menu={type:'title'},keys=new Set(),placement=null,last=performance.now(),hudAt=0,autoAt=0,noticeId=0,lastPhase='',saving=null,lastDay=1,saveConflict=false,saveUnavailable=false,menuAt=0;
+let preferences={volume:.25,ambience:1,effects:1,reduced:false,scale:1};try{preferences={...preferences,...JSON.parse(localStorage.getItem('apagao-settings')||'{}')};}catch{}
 preferences.volume=Math.max(0,Math.min(1,Number(preferences.volume)||0));preferences.scale=[.9,1,1.15].includes(preferences.scale)?preferences.scale:1;sound.volume=preferences.volume;document.documentElement.style.setProperty('--ui',preferences.scale);
+for(const channel of ['ambience','effects']){preferences[channel]=Number.isFinite(preferences[channel])?Math.max(0,Math.min(1,preferences[channel])):1;sound[channel]=preferences[channel];}
 function prefSave(){try{localStorage.setItem('apagao-settings',JSON.stringify(preferences));}catch{}}
 function notify(text,type='info'){
   const div=document.createElement('div');div.className=`notice ${type}`;div.textContent=text;$('notifications').append(div);setTimeout(()=>div.remove(),6500);while($('notifications').children.length>4)$('notifications').firstChild.remove();if(type==='danger'||type==='warning')sound.alert();
 }
 function apply(result){if(result){notify(result.message,result.ok?'success':'warning');sound.click();}if(menu)renderMenu();updateHUD();}
-function open(type,id=null){keys.clear();if(state)state.paused=['pause','settings','help','credits','confirm-new','new','tutorial'].includes(type);menu={type,id};renderMenu();}
-function close(){menu=null;$('overlay').innerHTML='';$('overlay').className='';if(state)state.paused=false;keys.clear();canvas.focus({preventScroll:true});}
+function open(type,id=null){keys.clear();if(state)state.paused=['pause','settings','help','credits','confirm-new','new','tutorial'].includes(type);menu={type,id};renderMenu();$('overlay').querySelector('button:not(:disabled)')?.focus({preventScroll:true});}
+function close(){if(saveConflict){open('pause');return;}menu=null;updateMarkup($('overlay'),'');$('overlay').className='';if(state)state.paused=false;keys.clear();last=performance.now();canvas.focus({preventScroll:true});}
 function panel(title,subtitle,content,wide=false){
   $('overlay').className=`overlay panel-overlay ${wide?'wide':''}`;
-  $('overlay').innerHTML=`<section class="panel" role="dialog" aria-modal="true" aria-label="${esc(title)}"><header class="panel-head"><div><span class="eyebrow">SANTA AURORA · INTERIOR PAULISTA</span><h2>${esc(title)}</h2><p>${subtitle}</p></div>${button('×','close','close','aria-label="Fechar"')}</header><div class="panel-body">${content}</div><footer class="panel-foot"><span>${!state?'A HISTÓRIA AINDA NÃO COMEÇOU':state.paused?'TEMPO PAUSADO':'O TEMPO CONTINUA PASSANDO'}</span><span>ESC para fechar</span></footer></section>`;
+  updateMarkup($('overlay'),`<section class="panel" role="dialog" aria-modal="true" aria-label="${esc(title)}"><header class="panel-head"><div><span class="eyebrow">SANTA AURORA · INTERIOR PAULISTA</span><h2>${esc(title)}</h2><p>${subtitle}</p></div>${button('×','close','close','aria-label="Fechar"')}</header><div class="panel-body">${content}</div><footer class="panel-foot"><span>${!state?'A HISTÓRIA AINDA NÃO COMEÇOU':state.paused?'TEMPO PAUSADO':'O TEMPO CONTINUA PASSANDO'}</span><span>ESC para fechar</span></footer></section>`);
 }
 function renderMenu(){
   if(!menu)return;const {type,id}=menu;
   if(type==='title'){
     $('overlay').className='overlay title-overlay';
-    $('overlay').innerHTML=`<section class="title-layout"><div class="brand-top"><span class="brand-mark">A / 30</span><span>UM JOGO DE SOBREVIVÊNCIA BRASILEIRO</span></div><div class="title-copy"><div class="eyebrow">SANTA AURORA, SÃO PAULO — 2026</div><h1>APAGÃO<span>30 DIAS</span></h1><div class="title-rule"></div><p>Trinta segundos para se preparar.<br>Trinta dias para descobrir do que você é capaz.</p><div class="title-actions">${button('Nova história <span>↗</span>','new','primary')}${button(saved?`Continuar · dia ${saved.day}`:'Continuar','continue','secondary',saved?'':'disabled')}${button('Como jogar','help','text-button')}${button('Configurações','settings','text-button')}</div></div><footer class="title-footer"><span>SEM CONEXÃO. AINDA HUMANOS.</span><span>INCREMENTO JOGÁVEL 0.1 · ${button('Créditos','credits','inline')}</span></footer><div class="scene-caption"><span class="dot"></span> Santa Aurora <small>Uma cidade pequena. Escolhas que ficam.</small></div></section>`;
+    updateMarkup($('overlay'),`<section class="title-layout"><div class="brand-top"><span class="brand-mark">A / 30</span><span>UM JOGO DE SOBREVIVÊNCIA BRASILEIRO</span></div><div class="title-copy"><div class="eyebrow">SANTA AURORA, SÃO PAULO — 2026</div><h1>APAGÃO<span>30 DIAS</span></h1><div class="title-rule"></div><p>Trinta segundos para se preparar.<br>Trinta dias para descobrir do que você é capaz.</p><div class="title-actions">${button('Nova história <span>↗</span>','new','primary')}${button(saved?`Continuar · dia ${saved.day}`:'Continuar','continue','secondary',saved?'':'disabled')}${button('Como jogar','help','text-button')}${button('Configurações','settings','text-button')}</div></div><footer class="title-footer"><span>SEM CONEXÃO. AINDA HUMANOS.</span><span>INCREMENTO JOGÁVEL 0.1 · ${button('Créditos','credits','inline')}</span></footer><div class="scene-caption"><span class="dot"></span> Santa Aurora <small>Uma cidade pequena. Escolhas que ficam.</small></div></section>`);
     return;
   }
   if(type==='new'){
@@ -42,18 +44,18 @@ function renderMenu(){
     panel('Como sobreviver','Explore, observe e construa uma rotina.',`${controls()}<div class="guide"><h3>O primeiro dia</h3><p>Entre em casa pela porta central. Fogão e filtro ficam à esquerda; cama e torneira, à direita. Transfira mantimentos do armário para a mochila. Consuma água e alimentos pelo inventário.</p><h3>Uma rotina possível</h3><p>Reserve cerca de 2,5 L de água e 2.200 kcal por dia, mais ao correr e trabalhar. Cozinhe arroz e feijão, varie a alimentação e descanse na cama. O quintal fica ao norte da casa; contorne a lateral para chegar lá.</p><h3>Trocas e trabalho</h3><p>Procure os moradores e pressione E. Use Comprar/Vender e o escambo. O mural do depósito paga uma jornada por dia com verba finita. Poço, lenha caída e materiais reaproveitáveis oferecem alternativas.</p><h3>Água, plantações e aves</h3><p>A chuva só enche reservatórios instalados. O filtro e fogão tratam água com risco microbiológico, com custo de combustível. Água quimicamente suspeita é recusada. Regue os canteiros, retire ervas e respeite o crescimento em dias. Galinhas adultas precisam de galinheiro, ração, água limpa e higiene.</p><h3>Segurança e progresso</h3><p>Tranque a porta do lado de fora ou dentro com E; destranque antes de passar. Rondas, iluminação e reforços dissuadem visitantes. Vença ao completar o dia 30 vivo. Faça exportações do progresso: limpar dados do navegador apaga o salvamento local.</p></div>`,true);return;
   }
   if(type==='settings'){
-    panel('Configurações','Preferências salvas neste navegador.',`<label class="field">Volume <input id="volume" type="range" min="0" max="100" value="${preferences.volume*100}"></label><label class="check"><input id="reduced" type="checkbox" ${preferences.reduced?'checked':''}> Reduzir chuva, partículas e oscilação das árvores</label><label class="field">Tamanho da interface<select id="ui-scale"><option value="0.9" ${preferences.scale===.9?'selected':''}>Compacto</option><option value="1" ${preferences.scale===1?'selected':''}>Padrão</option><option value="1.15" ${preferences.scale===1.15?'selected':''}>Ampliado</option></select></label><p class="muted">Todo alerta sonoro importante também aparece em texto. Movimento: WASD ou setas. Controles de toque em telas pequenas.</p>${button('Aplicar preferências','apply-settings','primary full')}`);return;
+    panel('Configurações','Preferências salvas neste navegador.',`<label class="field">Volume geral <input id="volume" type="range" min="0" max="100" value="${preferences.volume*100}"></label><label class="field">Ambiente <input id="ambience" type="range" min="0" max="100" value="${preferences.ambience*100}"></label><label class="field">Efeitos <input id="effects" type="range" min="0" max="100" value="${preferences.effects*100}"></label><label class="check"><input id="reduced" type="checkbox" ${preferences.reduced?'checked':''}> Reduzir chuva, partículas e oscilação das árvores</label><label class="field">Tamanho da interface<select id="ui-scale"><option value="0.9" ${preferences.scale===.9?'selected':''}>Compacto</option><option value="1" ${preferences.scale===1?'selected':''}>Padrão</option><option value="1.15" ${preferences.scale===1.15?'selected':''}>Ampliado</option></select></label><p class="muted">Todo alerta sonoro importante também aparece em texto. Movimento: WASD ou setas. Controles de toque em telas pequenas.</p>${button('Aplicar preferências','apply-settings','primary full')}`);return;
   }
   if(type==='credits'){
     panel('Feito para um mundo offline','APAGÃO: 30 DIAS · incremento 0.1',`<div class="guide"><h3>Santa Aurora é fictícia</h3><p>Uma história alternativa sobre recursos, vínculos e escolhas. Desligar a internet não derruba automaticamente a eletricidade ou a rede de água.</p><h3>Arte e som originais</h3><p>Pixel art desenhada em código e áudio sintetizado com Web Audio. Sem fontes, imagens, músicas ou serviços externos durante a partida.</p><h3>Referências de simulação</h3><p>Ministério da Saúde: cuidados com água para consumo humano. Embrapa: hortaliças e produção de ovos. Fontes, valores e simplificações estão em docs/REFERENCIAS.md.</p><p>Esta versão já permite uma campanha com sistemas integrados. O acabamento e a profundidade ainda estão em desenvolvimento.</p></div>`);return;
   }
   if(type==='pause'){
-    panel('Um momento de silêncio',`Dia ${String(state.day).padStart(2,'0')} · ${clock()} · ${esc(Sim.arc(state))}`,`<div class="pause-summary"><div><strong>${money(state.player.cash)}</strong><span>em espécie</span></div><div><strong>${Math.round(state.town.trust)} / 100</strong><span>confiança</span></div><div><strong>${Math.floor(state.activeTime/60)} min</strong><span>tempo ativo</span></div></div><div class="menu-stack">${button('Retomar a história','close','primary')}${button('Salvar agora','save','secondary')}${button('Exportar progresso · JSON','export','secondary')}${button('Importar progresso','import','secondary')}${button('Configurações','settings','secondary')}${button('Como jogar','help','secondary')}${button('Voltar ao início · salvar e sair','title','text-button')}</div><p class="muted">Salvamento automático a cada 20 segundos ativos. O navegador pode apagar dados locais; exporte uma cópia para guardar o progresso.</p>`);return;
+    panel('Um momento de silêncio',`Dia ${String(state.day).padStart(2,'0')} · ${clock()} · ${esc(Sim.arc(state))}`,` ${saveConflict?`<div class="callout warning"><p>Outra aba salvou uma versão diferente. Exporte esta partida antes de carregar o progresso mais recente.</p>${button('Carregar progresso mais recente','continue','secondary full')}</div>`:''}<div class="pause-summary"><div><strong>${money(state.player.cash)}</strong><span>em espécie</span></div><div><strong>${Math.round(state.town.trust)} / 100</strong><span>confiança</span></div><div><strong>${Math.floor(state.activeTime/60)} min</strong><span>tempo ativo</span></div></div><div class="menu-stack">${button('Retomar a história','close','primary')}${button('Salvar agora','save','secondary')}${button('Exportar progresso · JSON','export','secondary')}${button('Importar progresso','import','secondary')}${button('Configurações','settings','secondary')}${button('Como jogar','help','secondary')}${button('Voltar ao início · salvar e sair','title','text-button')}</div><p class="muted">Salvamento automático a cada 20 segundos ativos. O navegador pode apagar dados locais; exporte uma cópia para guardar o progresso.</p>`);return;
   }
   if(type==='inventory'||type==='storage'){
     const storage=type==='storage';
-    const rows=(list,stored=false)=>list.length?list.map(b=>{const d=ITEMS[b.item],bad=b.expiry!==null&&b.expiry<=state.day;
-      return `<div class="item-row ${bad?'spoiled':''}">${itemImg(b.item)}<div class="item-info"><b>${esc(d.name)}</b><small>${b.qty} un. · ${(d.weight*b.qty).toFixed(1)} kg${b.expiry?` · ${bad?'VENCIDO':`validade: dia ${Math.floor(b.expiry)}`}`:''}</small><span>${esc(d.desc)}</span></div><div class="row-actions">${storage?button(stored?'Levar':'Guardar',`transfer:${b.uid}:${stored?'out':'in'}`,'tiny'):((d.kcal||d.drink||b.item==='meds'||b.item==='battery')&&!d.cook?button(bad?'Consumir vencido':d.drink?'Beber':'Usar',`consume:${b.uid}`,'tiny',b.item==='chemical'?'disabled':''):'')} ${button('Descartar',`discard:${b.uid}:${stored?'storage':'inventory'}`,'tiny subtle')}</div></div>`;}).join(''):'<p class="empty">Nada guardado aqui.</p>';
+    const rows=(list,stored=false)=>list.length?list.map(b=>{const d=ITEMS[b.item],bad=b.condition<40||(b.expiry!==null&&b.expiry<=state.day);
+      return `<div class="item-row ${bad?'spoiled':''}">${itemImg(b.item)}<div class="item-info"><b>${esc(d.name)}</b><small>${b.qty} un. · ${(d.weight*b.qty).toFixed(1)} kg${b.expiry?` · ${bad?'VENCIDO':`validade: dia ${Math.floor(b.expiry)}`}`:''}</small><span>${esc(d.desc)}</span></div><div class="row-actions">${storage?button(stored?'Levar':'Guardar',`transfer:${b.uid}:${stored?'out':'in'}`,'tiny'):((d.kcal||d.drink||b.item==='meds'||b.item==='battery')&&!d.cook?button(bad?'Consumir deteriorado':d.drink?'Beber':'Usar',`consume:${b.uid}`,'tiny',b.item==='chemical'?'disabled':''):'')} ${button('Descartar',`discard:${b.uid}:${stored?'storage':'inventory'}`,'tiny subtle')}</div></div>`;}).join(''):'<p class="empty">Nada guardado aqui.</p>';
     panel(storage?'Reservas de casa':'Sua mochila',`${Sim.load(state).toFixed(1)} / 22 kg · ${Sim.load(state,'volume').toFixed(1)} / 30 L · ${money(state.player.cash)} em espécie`,`${state.player.diet.length?`<p class="muted">Diversidade recente: ${new Set(state.player.diet).size} alimentos diferentes. Condição: ${state.player.sick>0?'mal-estar gastrointestinal':state.player.wound>0?'ferimentos leves':'sem doença ativa'}.</p>`:''}<h3>MOCHILA</h3>${rows(state.player.inventory)}${storage?`<h3>ARMÁRIO · GELADEIRA ${state.services.power?'LIGADA':'SEM ENERGIA'}</h3>${rows(state.storage,true)}<div class="callout">Dinheiro guardado: ${money(state.house.safeCash)}<div class="row-actions">${button('Guardar todas as cédulas','cash-in','tiny')}${button('Levar todas as cédulas','cash-out','tiny')}</div></div>`:''}`,true);return;
   }
   if(type==='map'){
@@ -92,6 +94,7 @@ function renderMenu(){
       const d=b.crop?CROPS[b.crop.kind]:null;
       panel('Canteiro',`Umidade ${Math.round(b.moisture)}% · fertilidade ${Math.round(b.fertility)}% · vitalidade ${Math.round(b.health)}%`,`${d?`<div class="crop-status"><h3>${d.name}</h3><p>${b.crop.age.toFixed(1)} / ${d.days} dias de desenvolvimento</p><div class="progress"><i style="width:${Math.min(100,b.crop.age/d.days*100)}%"></i></div>${button('Colher',`garden:${id}:harvest`,'primary full')}</div>`:`<h3>Solo preparado · escolha o plantio</h3><div class="crop-grid">${Object.entries(CROPS).map(([k,c])=>button(`${c.name}<small>${c.days} dias</small>`,`plant:${id}:${k}`,'crop-choice')).join('')}</div>${button('Plantar muda de alface · 45 dias já desenvolvidos',`seedling:${id}`,'secondary full')}`}<div class="row-actions spaced">${button('Regar · 1 L',`garden:${id}:water`,'tiny')}${button(`Remover ervas · ${Math.round(b.weeds)}%`,`garden:${id}:weed`,'tiny')}${button('Aplicar composto',`garden:${id}:compost`,'tiny')}</div><p class="muted">A chuva altera a umidade. Sem boas condições, o desenvolvimento desacelera. As espécies de ciclo longo não amadurecem dentro dos 30 dias.</p>${button('Remover canteiro vazio · recuperar metade da madeira',`remove:${id}`,'text-button')}`,true);return;
     }
+    if(b.type==='coop'&&b!==state.builds.find(v=>v.type==='coop')){panel('Abrigo desativado','As aves vivem no primeiro galinheiro.',`<p>Esta estrutura antiga foi preservada. Os cuidados e ovos ficam no abrigo ativo.</p>${button('Desmontar estrutura vazia',`remove:${id}`,'secondary full')}`);return;}
     if(b.type==='coop'){
       panel('Galinheiro',`${state.chickens.length} / 4 aves · ${b.eggs||0} ovos · higiene ${100-Math.round(b.dirt||0)}%`,`<div class="pause-summary"><div><strong>${(b.feed||0).toFixed(2)} kg</strong><span>ração</span></div><div><strong>${(b.water||0).toFixed(1)} L</strong><span>água</span></div><div><strong>${state.chickens.length?Math.round(state.chickens.reduce((a,c)=>a+c.health,0)/state.chickens.length):'—'}</strong><span>saúde média</span></div></div><p>Por ave/dia: cerca de 120 g de ração e 300 mL de água. Produção média modelada: até 0,75 ovo por dia saudável.</p><div class="menu-stack">${button('Abastecer ração · 1 kg','chicken-feed','secondary')}${button('Abastecer água · 1 L','chicken-water','secondary')}${button('Limpar abrigo','chicken-clean','secondary')}${button('Coletar ovos','chicken-eggs','primary')}</div>${button('Remover abrigo vazio',`remove:${id}`,'text-button')}`);return;
     }
@@ -101,7 +104,7 @@ function renderMenu(){
     if(b.type==='compost'){
       panel('Composteira',`${b.ready||0} doses prontas · ${b.filled?`${b.days||0} / 7 dias de maturação`:'aguardando resíduos'}`,`<p>Adicione 2 porções de vegetais ou frutas. A maturação é simplificada e produz duas doses para melhorar a fertilidade.</p>${button('Adicionar resíduos',`compost:${id}`,'primary full')}${button('Remover',`remove:${id}`,'text-button')}`);return;
     }
-    if(b.type==='crate'){menu={type:'storage'};renderMenu();return;}
+    if(b.type==='crate'){menu={...menu,type:'storage'};renderMenu();return;}
     panel(RECIPES[b.type].name,'Construção doméstica.',`<p>Reforços iluminam o quintal e reduzem oportunidades de furto. Cercas demarcam áreas e bloqueiam a passagem.</p>${button('Desmontar · recuperar madeira',`remove:${id}`,'secondary full')}`);return;
   }
   if(type==='work'||type==='patrol'||type==='fair'||type==='clinic'||type==='farm'||type==='salvage'||type==='forest'){
@@ -116,20 +119,21 @@ function renderMenu(){
 function controls(){return `<div class="controls"><div><kbd>W A S D</kbd><span>mover</span></div><div><kbd>SHIFT</kbd><span>correr</span></div><div><kbd>E</kbd><span>interagir</span></div><div><kbd>I</kbd><span>mochila</span></div><div><kbd>M</kbd><span>mapa</span></div><div><kbd>J</kbd><span>diário</span></div><div><kbd>B</kbd><span>construir</span></div><div><kbd>F</kbd><span>lanterna</span></div><div><kbd>ESC</kbd><span>pausar</span></div></div>`;}
 let draft={mode:'normal',seed:1};
 async function persist(manual=false){
-  if(!state||saving)return;saving=true;
-  try{await saveGame(state);saved=structuredClone(state);if(manual)notify('Progresso salvo neste navegador.','success');$('save-status')?.replaceChildren(document.createTextNode('SALVO'));}
-  catch(e){notify(e.message,'warning');}finally{saving=false;}
+  if(saving){await saving;return persist(manual);}if(!state)return true;if(saveConflict)return false;if(saveUnavailable&&!manual)return false;
+  const target=state,snapshot=structuredClone(target);
+  saving=(async()=>{try{const write=saveGame(snapshot,{replace:saveUnavailable});await write;saveUnavailable=false;target.saveRevision=Math.max(target.saveRevision,snapshot.saveRevision);target.saveToken=snapshot.saveToken;if(state===target)saved=snapshot;if(manual)notify('Progresso salvo neste navegador.','success');return true;}catch(e){if(e.name==='SaveConflict'){saveConflict=true;open('pause');}notify(e.message,'warning');return false;}})();
+  const result=await saving;saving=null;return result;
 }
 async function action(act){
   sound.init();sound.click();const [a,b,c,d,e]=act.split(':');
-  if(a==='close'){if(!state){open('title');return;}if(menu?.type==='tutorial'){open('new');return;}close();return;}
+  if(a==='close'){if(!state){open('title');return;}if(['won','dead'].includes(state.phase)){open('ending');return;}if(menu?.type==='tutorial'){open('new');return;}close();return;}
   if(a==='new'){if(state&&['prologue','survival'].includes(state.phase))await persist();open('new');return;}
   if(a==='tutorial'){draft={mode:$('mode').value,seed:Math.max(0,Math.min(4294967295,Number($('seed').value)||0))>>>0};open('tutorial');return;}
-  if(a==='begin'){state=Sim.createGame(draft.seed,draft.mode);noticeId=0;lastPhase='prologue';lastDay=1;autoAt=0;close();updateHUD();return;}
-  if(a==='continue'){if(saved){state=Sim.validateSave(saved);lastPhase=state.phase;lastDay=state.day;noticeId=state.serial;close();if(['won','dead'].includes(state.phase))open('ending');notify('História retomada. O tempo passou apenas durante a partida.','success');}return;}
-  if(a==='title'){await persist();state=null;placement=null;renderer.place=null;open('title');updateHUD();return;}
+  if(a==='begin'){if(saving)await saving;const fresh=Sim.createGame(draft.seed,draft.mode);try{await saveGame(fresh,{replace:true});saveUnavailable=false;saved=structuredClone(fresh);}catch(e){saveUnavailable=true;notify(`O salvamento falhou: ${e.message} A partida pode continuar; use Exportar progresso ou tente Salvar agora.`, 'warning');}state=fresh;saveConflict=false;noticeId=0;lastPhase='prologue';lastDay=1;autoAt=0;close();updateHUD();return;}
+  if(a==='continue'){const latest=await loadGame();if(latest){saved=latest;state=Sim.validateSave(saved);autoAt=state.activeTime;saveConflict=false;saveUnavailable=false;lastPhase=state.phase;lastDay=state.day;noticeId=state.serial;close();if(['won','dead'].includes(state.phase))open('ending');notify('História retomada. O tempo passou apenas durante a partida.','success');}return;}
+  if(a==='title'){if(!await persist())return;state=null;placement=null;renderer.place=null;open('title');updateHUD();return;}
   if(['help','settings','credits','pause','inventory','map','journal','build-menu'].includes(a)){open(a);return;}
-  if(a==='apply-settings'){preferences.volume=Number($('volume').value)/100;preferences.reduced=$('reduced').checked;preferences.scale=Number($('ui-scale').value);sound.volume=preferences.volume;document.documentElement.style.setProperty('--ui',preferences.scale);prefSave();state?open('pause'):open('title');return;}
+  if(a==='apply-settings'){preferences.volume=Number($('volume').value)/100;for(const channel of ['ambience','effects']){preferences[channel]=Number($(channel).value)/100;sound[channel]=preferences[channel];}preferences.reduced=$('reduced').checked;preferences.scale=Number($('ui-scale').value);sound.volume=preferences.volume;document.documentElement.style.setProperty('--ui',preferences.scale);prefSave();state?open('pause'):open('title');return;}
   if(a==='save'){await persist(true);return;}if(a==='export'){if(state)exportSave(state);return;}if(a==='import'){$('import-file').click();return;}
   if(!state||!['prologue','survival'].includes(state.phase))return;
   let r;
@@ -143,7 +147,7 @@ async function action(act){
     case 'donate':r=Sim.community(state,'donate',b);break;
     case 'consume':r=Sim.consume(state,Number(b));break;
     case 'transfer':r=Sim.transfer(state,Number(b),c==='in');break;
-    case 'discard':{const list=c==='storage'?state.storage:state.player.inventory;const batch=list.find(v=>v.uid===Number(b));if(batch){Sim.take(state,batch.item,1,c);r={ok:true,message:'Uma unidade descartada.'};}break;}
+    case 'discard':r=Sim.discard(state,Number(b),c);break;
     case 'cash-in':r=Sim.bankHome(state);break;
     case 'cash-out':r=Sim.bankHome(state,false);break;
     case 'cook':r=Sim.cook(state,b);if(r.ok)close();break;
@@ -182,40 +186,43 @@ async function action(act){
 function interact(){
   if(!state||placement)return;if(state.task){notify('Você está ocupado. Cancele a atividade para sair.','warning');return;}
   const n=nearest(state);if(!n){notify('Aproxime-se de uma porta, objeto ou morador.');return;}
-  const map={shop:'trade',npc:'trade'};open(map[n.kind]||n.kind,n.kind==='shop'?n.trader:n.kind==='build'?n.build.id:n.id);
+  const map={shop:'trade',npc:'trade'};open(map[n.kind]||n.kind,n.kind==='shop'?n.trader:n.kind==='build'?n.build.id:n.id);menu.anchor=n;
 }
 function timeOf(t){const minutes=(360+Math.floor(t/DAY*1440))%1440;return `${String(Math.floor(minutes/60)).padStart(2,'0')}:${String(minutes%60).padStart(2,'0')}`;}
 function clock(){return state.phase==='prologue'?'06:00':timeOf(state.dayTime);}
 function updateHUD(){
-  const on=!!state;for(const id of ['hud','toolbar','objectives'])$(id).hidden=!on;$('touch').hidden=!on||!matchMedia('(pointer:coarse)').matches;
+  const on=!!state;for(const id of ['hud','toolbar','objectives'])$(id).hidden=!on;$('touch').hidden=!on||!!menu||!matchMedia('(pointer:coarse)').matches;
   if(!on){$('context').hidden=true;$('countdown').hidden=true;return;}
   const p=state.player;
   const stat=(name,value,color,inverse=false)=>`<div class="vital ${value<20&&!inverse?'low':''}" title="${name}: ${Math.round(value)} de 100"><span>${name}</span><div class="vital-track"><i style="width:${value}%;background:${color}"></i></div><b>${Math.round(value)}</b></div>`;
-  $('hud').innerHTML=`<div class="hud-brand">A<span>/ 30</span></div><div class="clock"><b>${state.phase==='prologue'?'PRÓLOGO':`DIA ${String(state.day).padStart(2,'0')}<small>/30</small>`}</b><span>${state.phase==='prologue'?`00:${String(Math.ceil(state.prologue)).padStart(2,'0')}`:clock()}</span></div><div class="vitals">${stat('SAÚDE',p.health,'#a7bb84')}${stat('SACIEDADE',p.food,'#d5b775')}${stat('HIDRATAÇÃO',p.water,'#80b8b8')}${stat('ENERGIA',p.energy,'#baa2c0')}</div><div class="pocket"><strong>${money(p.cash)}</strong><small>EM ESPÉCIE</small></div><div class="weather"><b>${state.weather.kind.toUpperCase()} · ${state.weather.temp}°</b><small>${state.services.power?'LUZ ✓':'LUZ ×'} · ${state.services.water?'ÁGUA ✓':'ÁGUA ×'}</small></div>${button('Ⅱ','pause','hud-pause','aria-label="Pausar"')}`;
+  updateMarkup($('hud'),`<div class="hud-brand">A<span>/ 30</span></div><div class="clock"><b>${state.phase==='prologue'?'PRÓLOGO':`DIA ${String(state.day).padStart(2,'0')}<small>/30</small>`}</b><span>${state.phase==='prologue'?`00:${String(Math.ceil(state.prologue)).padStart(2,'0')}`:clock()}</span></div><div class="vitals">${stat('SAÚDE',p.health,'#a7bb84')}${stat('SACIEDADE',p.food,'#d5b775')}${stat('HIDRATAÇÃO',p.water,'#80b8b8')}${stat('ENERGIA',p.energy,'#baa2c0')}</div><div class="pocket"><strong>${money(p.cash)}</strong><small>EM ESPÉCIE</small></div><div class="weather"><b>${state.weather.kind.toUpperCase()} · ${state.weather.temp}°</b><small>${state.services.power?'LUZ ✓':'LUZ ×'} · ${state.services.water?'ÁGUA ✓':'ÁGUA ×'}</small></div>${button('Ⅱ','pause','hud-pause','aria-label="Pausar"')}`);
   const prologue=state.phase==='prologue';$('countdown').hidden=!prologue||!!menu;
-  if(prologue)$('countdown').innerHTML=`<span>A CONEXÃO TERMINA EM</span><strong class="${state.prologue<10?'urgent':''}">00:${String(Math.ceil(state.prologue)).padStart(2,'0')}</strong>`;
-  $('objectives').innerHTML=prologue?`<span class="eyebrow">OS ÚLTIMOS 30 SEGUNDOS</span><p class="${p.bank<150000?'done':''}">01 &nbsp; Saque dinheiro no banco →</p><p class="${state.stats.trades?'done':''}">02 &nbsp; Escolha reservas no mercado →</p><small>WASD mover · Shift correr · E interagir</small>`:`<span class="eyebrow">${esc(Sim.arc(state))}</span><p>${state.town.fair?'A feira está funcionando.':state.day<6?'Cuide de hoje. Prepare o amanhã.':'Ajude a organizar a feira.'}</p><small>Confiança ${Math.round(state.town.trust)} · ${insideBuilding(p.x,p.y)?.name||'Santa Aurora'}</small>`;
-  $('toolbar').innerHTML=`<div class="toolbar-actions">${button('<kbd>I</kbd> Mochila','inventory')}${button('<kbd>M</kbd> Mapa','map')}${button('<kbd>J</kbd> Diário','journal')}${button('<kbd>B</kbd> Construir','build-menu')}${button(`<kbd>F</kbd> ${p.lantern?'Lanterna ligada':'Lanterna'}`,'lantern')}</div><div class="toolbar-right"><span>${Sim.load(state).toFixed(1)} / 22 kg</span><span>ESTRESSE ${Math.round(p.stress)} · EXPOSIÇÃO ${Math.round(p.exposure)}</span><span id="save-status">LOCAL</span></div>`;
+  if(prologue)updateMarkup($('countdown'),`<span>A CONEXÃO TERMINA EM</span><strong class="${state.prologue<10?'urgent':''}">00:${String(Math.ceil(state.prologue)).padStart(2,'0')}</strong>`);
+  updateMarkup($('objectives'),prologue?`<span class="eyebrow">OS ÚLTIMOS 30 SEGUNDOS</span><p class="${p.bank<150000?'done':''}">01 &nbsp; Saque dinheiro no banco →</p><p class="${state.stats.trades?'done':''}">02 &nbsp; Escolha reservas no mercado →</p><small>WASD mover · Shift correr · E interagir</small>`:`<span class="eyebrow">${esc(Sim.arc(state))}</span><p>${state.town.fair?'A feira está funcionando.':state.day<6?'Cuide de hoje. Prepare o amanhã.':'Ajude a organizar a feira.'}</p><small>Confiança ${Math.round(state.town.trust)} · ${insideBuilding(p.x,p.y)?.name||'Santa Aurora'}</small>`);
+  updateMarkup($('toolbar'),`<div class="toolbar-actions">${button('<kbd>I</kbd> Mochila','inventory')}${button('<kbd>M</kbd> Mapa','map')}${button('<kbd>J</kbd> Diário','journal')}${button('<kbd>B</kbd> Construir','build-menu')}${button(`<kbd>F</kbd> ${p.lantern?'Lanterna ligada':'Lanterna'}`,'lantern')}</div><div class="toolbar-right"><span>${Sim.load(state).toFixed(1)} / 22 kg</span><span>ESTRESSE ${Math.round(p.stress)} · EXPOSIÇÃO ${Math.round(p.exposure)}</span><span id="save-status">LOCAL</span></div>`);
   const n=nearest(state);$('context').hidden=!!menu||(!n&&!state.task&&!placement);
-  if(state.task){$('context').innerHTML=`<div class="task"><span>${({sleep:'Descansando',cook:'Cozinhando',treat:'Filtrando e fervendo',work:'Trabalhando',patrol:'Organizando vigilância',build:'Construindo',salvage:'Recolhendo materiais'})[state.task.type]} · ${Math.ceil(state.task.remaining)} s</span><div class="progress"><i style="width:${(1-state.task.remaining/state.task.total)*100}%"></i></div>${button('Cancelar','cancel-task','tiny')}</div>`;}
-  else if(placement)$('context').innerHTML=`<kbd>CLIQUE</kbd> Posicionar ${RECIPES[placement].name} <small>Esc cancela</small>`;
-  else if(n)$('context').innerHTML=`${button(`<kbd>E</kbd> ${esc(n.name)}`,'interact','context-button')}`;
+  if(state.task){updateMarkup($('context'),`<div class="task"><span>${({sleep:'Descansando',cook:'Cozinhando',treat:'Filtrando e fervendo',work:'Trabalhando',patrol:'Organizando vigilância',build:'Construindo',salvage:'Recolhendo materiais'})[state.task.type]} · ${Math.ceil(state.task.remaining)} s</span><div class="progress"><i style="width:${(1-state.task.remaining/state.task.total)*100}%"></i></div>${button('Cancelar','cancel-task','tiny')}</div>`);}
+  else if(placement)updateMarkup($('context'),`<kbd>CLIQUE</kbd> Posicionar ${RECIPES[placement].name} <small>Esc cancela</small>`);
+  else if(n)updateMarkup($('context'),`${button(`<kbd>E</kbd> ${esc(n.name)}`,'interact','context-button')}`);
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(b&&!b.disabled)action(b.dataset.act).catch(err=>{console.error(err);notify('Não foi possível concluir a ação. Seu progresso atual foi mantido.','warning');});});
 document.addEventListener('keydown',e=>{
-  if(e.target.matches('input,select'))return;
+  if(e.key==='Tab'&&menu){const controls=[...$('overlay').querySelectorAll('button:not(:disabled),input,select')].filter(el=>el.offsetParent!==null);if(controls.length){const index=controls.indexOf(document.activeElement),next=(index+(e.shiftKey?-1:1)+controls.length)%controls.length;e.preventDefault();controls[next].focus();}return;}
+  if(e.target.matches('input,select')&&e.key!=='Escape')return;
+  if(e.target.closest('button')&&[' ','Enter'].includes(e.key))return;
   let key=e.key.toLowerCase();const arrows={arrowup:'w',arrowdown:'s',arrowleft:'a',arrowright:'d'};key=arrows[key]||key;
   if(['w','a','s','d',' ','escape','shift'].includes(key))e.preventDefault();
   if(e.repeat)return;
-  if(key==='escape'){if(placement){placement=null;renderer.place=null;notify('Construção cancelada.');return;}if(menu){if(state&&menu.type==='pause')close();else if(state)open('pause');else open('title');}else if(state)open('pause');return;}
-  if(menu)return;
+  if(key==='escape'){if(state&&['won','dead'].includes(state.phase)){open('ending');return;}if(placement){placement=null;renderer.place=null;notify('Construção cancelada.');return;}if(menu){if(state&&menu.type==='pause')close();else if(state)open('pause');else open('title');}else if(state)open('pause');return;}
+  if(menu||saveConflict)return;
   keys.add(key);
   const shortcuts={e:'interact',i:'inventory',m:'map',j:'journal',b:'build-menu',f:'lantern'};if(shortcuts[key])action(shortcuts[key]);
 });
 document.addEventListener('keyup',e=>{const arrows={arrowup:'w',arrowdown:'s',arrowleft:'a',arrowright:'d'};keys.delete(arrows[e.key.toLowerCase()]||e.key.toLowerCase());});
 window.addEventListener('blur',()=>{keys.clear();if(state&&['prologue','survival'].includes(state.phase)&&!state.paused)open('pause');});
 document.addEventListener('visibilitychange',()=>{last=performance.now();if(document.hidden&&state){keys.clear();state.paused=true;persist();if(['prologue','survival'].includes(state.phase))open('pause');}});
-window.addEventListener('pagehide',()=>{if(state){try{state.saveRevision++;const copy=structuredClone(state);copy.paused=false;localStorage.setItem('apagao-save-v1',JSON.stringify(copy));}catch{}}});
+// Best effort only: closing a tab must never bypass revision checks.
+window.addEventListener('pagehide',()=>{if(state&&!saveConflict)void persist();});
 canvas.addEventListener('pointermove',e=>{
   if(!placement||!state)return;const r=canvas.getBoundingClientRect(),x=Math.floor(((e.clientX-r.left)/r.width*canvas.width+renderer.camera.x)/TILE),y=Math.floor(((e.clientY-r.top)/r.height*canvas.height+renderer.camera.y)/TILE);renderer.place={x,y,valid:!canBuild(state,placement,x,y)};
 });
@@ -227,15 +234,17 @@ canvas.addEventListener('pointerdown',e=>{
 for(const b of document.querySelectorAll('[data-key]')){b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);if(!menu)keys.add(b.dataset.key);});for(const event of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(event,()=>keys.delete(b.dataset.key));}
 $('touch-action').addEventListener('click',()=>interact());
 $('import-file').addEventListener('change',async e=>{
-  const file=e.target.files[0];try{const imported=await importSave(file);await saveGame(imported);state=imported;saved=structuredClone(state);noticeId=state.serial;lastPhase=state.phase;lastDay=state.day;close();if(['won','dead'].includes(state.phase))open('ending');else open('pause');notify('Progresso importado e validado.','success');}catch(err){notify(`Importação recusada: ${err.message}`,'warning');}finally{e.target.value='';}
+  const file=e.target.files[0];try{const imported=await importSave(file);if(saving)await saving;await saveGame(imported,{replace:true});state=imported;saveConflict=false;saveUnavailable=false;autoAt=state.activeTime;placement=null;renderer.place=null;saved=structuredClone(state);noticeId=state.serial;lastPhase=state.phase;lastDay=state.day;close();if(['won','dead'].includes(state.phase))open('ending');else open('pause');notify('Progresso importado e validado.','success');}catch(err){notify(`Importação recusada: ${err.message}`,'warning');}finally{e.target.value='';}
 });
 function frame(now){
-  const dt=Math.min(.25,Math.max(0,(now-last)/1000));last=now;
+  sound.ambientEnabled=!!state&&!state.paused&&['prologue','survival'].includes(state.phase);
+  const dt=Math.max(0,(now-last)/1000);last=now;
   if(state){
+    if(menu?.anchor&&!Sim.playerCanReach(state,menu.anchor)){close();notify('A interação terminou: o alvo se afastou ou há uma parede no caminho.');}
     const phase=state.phase;
-    if(!menu)Sim.move(state,(keys.has('d')?1:0)-(keys.has('a')?1:0),(keys.has('s')?1:0)-(keys.has('w')?1:0),keys.has('shift'),dt);
+    if(!menu&&!saveConflict)Sim.move(state,(keys.has('d')?1:0)-(keys.has('a')?1:0),(keys.has('s')?1:0)-(keys.has('w')?1:0),keys.has('shift'),dt);
     else{state.player.moving=false;state.player.running=false;}
-    Sim.advance(state,dt);
+    if(!saveConflict)Sim.advance(state,dt);
     if(state.phase!==lastPhase){
       lastPhase=state.phase;
       if(state.phase==='survival'){
@@ -250,6 +259,7 @@ function frame(now){
   }
   renderer.draw(state,now,preferences.reduced);
   if(now-hudAt>150){hudAt=now;updateHUD();}
+  if(now-menuAt>1000){menuAt=now;if(menu&&['inventory','storage','trade','npc','journal','build','coop','garden','barrel','compost'].includes(menu.type))renderMenu();if(menu?.type==='map')renderer.minimap($('minimap'),state);}
   requestAnimationFrame(frame);
 }
 try{saved=await loadGame();}catch(err){notify(`Não foi possível ler o progresso: ${err.message} Você pode importar uma cópia.`, 'warning');}
