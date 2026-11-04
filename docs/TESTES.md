@@ -95,6 +95,13 @@ npm run test:production
 - `npm run audit:visual`: 8 viewports entre 360 × 800 e 1920 × 1080 sem overflow, sobreposição ou erro. A auditoria mede a tela inicial; o HUD/ataque foi verificado no teste de navegador móvel.
 - Ainda não há teste em aparelho físico nem validação de todas as reações possíveis em campanha longa.
 
+## HUD Pixel Art — 4 de novembro de 2026
+
+- `npm run test:hud` valida e captura o prólogo e a sobrevivência nas 14 resoluções pedidas: cinco desktops, quatro celulares em retrato, três em paisagem e dois tablets.
+- O teste verifica quatro atributos com dez ícones SVG `viewBox="0 0 16 16"`, caixas sem deformação, grade responsiva, preenchimento 55 (cinco completos, um parcial, quatro vazios), energia 90, ausência de rolagem horizontal e separação entre HUD, instruções e cronômetro.
+- Capturas e relatório: [test-results/visual/hud](../test-results/visual/hud/). Os arquivos são gerados localmente pelo teste e não são adicionados ao Git.
+- O HUD cria os grupos uma vez por sessão e atualiza somente valores e ícones alterados. Emulação Edge/Playwright aprovada; aparelhos físicos e Safari iOS ainda precisam de validação.
+
 ## Compartilhamento social
 
 - `npm test` também valida os seis destinos externos, codificação da URL única, mensagens de resultado sem conteúdo do save, montagem do PNG de campanha e metadados presentes no HTML de produção. O cache offline inclui a imagem e o módulo de compartilhamento.

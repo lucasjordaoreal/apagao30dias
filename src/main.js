@@ -3,6 +3,7 @@ import { nearest, canBuild, insideBuilding } from './world.js';
 import * as Sim from './systems/simulation.js';
 import { Renderer, itemIcon } from './scenes/renderer.js';
 import { updateMarkup } from './ui/dom.js';
+import { createVitalsMarkup, updateVitals } from './ui/hud.js';
 import { Sound } from './systems/audio.js';
 import { saveGame, loadGame, exportSave, importSave } from './save/storage.js';
 import { SITE_URL, SOCIAL_IMAGE_PATH } from './site-config.js';
@@ -261,12 +262,30 @@ function updateHUD(){
   const on=!!state;for(const id of ['hud','toolbar','objectives'])$(id).hidden=!on;$('touch').hidden=!on||!!menu||!matchMedia('(pointer:coarse)').matches;
   if(!on){$('context').hidden=true;$('countdown').hidden=true;$('touch-attack').hidden=true;return;}
   const p=state.player;
-  const icons={health:'<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M1 4h2V2h4v2h2V2h4v2h2v5h-2v2h-2v2H9v2H7v-2H5v-2H3V9H1z"/></svg>',food:'<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M3 2h2v5h1V2h2v5h1V2h2v6H8v6H5V8H3zM13 2h2v12h-2z"/></svg>',water:'<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M7 1h2v2h2v2h2v3h1v4h-2v2H5v-2H3V8h1V5h2V3h1z"/></svg>',energy:'<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1h6v2h-2v3h3v2h-2v3h-2v4H8v-4h2V9H5V7h2V4h1z"/></svg>'};
-  const stat=(key,name,value,color)=>`<div class="vital ${value<20?'low':''}" role="meter" aria-label="${name}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(value)}" title="${name}: ${Math.round(value)} de 100">${icons[key]}<span class="vital-label">${name}</span><b>${Math.round(value)}</b><div class="vital-units">${Array.from({length:10},(_,i)=>{const amount=Math.max(0,Math.min(10,value-i*10));return `<i class="vital-unit ${amount>=9.5?'full':amount>=4.5?'half':'empty'}" style="--vital:${color}"></i>`;}).join('')}</div></div>`;
-  updateMarkup($('hud'),`<div class="hud-brand">A<span>/ 30</span></div><div class="clock"><b>${state.phase==='prologue'?'PRÓLOGO':`DIA ${String(state.day).padStart(2,'0')}<small>/30</small>`}</b><span>${state.phase==='prologue'?`00:${String(Math.ceil(state.prologue)).padStart(2,'0')}`:clock()}</span></div><div class="vitals">${stat('health','SAÚDE',p.health,'#d87a69')}${stat('food','SACIEDADE',p.food,'#d5b775')}${stat('water','HIDRATAÇÃO',p.water,'#80b8b8')}${stat('energy','ENERGIA',p.energy,'#baa2c0')}</div><div class="pocket"><strong>${money(p.cash)}</strong><small>EM ESPÉCIE</small></div><div class="weather"><b>${state.weather.kind.toUpperCase()} · ${state.weather.temp}°</b><small>${state.services.power?'LUZ ✓':'LUZ ×'} · ${state.services.water?'ÁGUA ✓':'ÁGUA ×'}</small></div>${button('Ⅱ','pause','hud-pause','aria-label="Pausar"')}`);
+  const hud=$('hud');
+  if(!hud.dataset.ready){
+    updateMarkup(hud,`<div class="clock"><b><span class="clock-label"></span><small class="clock-total">/30</small></b><span class="clock-value"></span></div><div class="vitals">${createVitalsMarkup()}</div><div class="pocket"><strong></strong><small>EM ESPÉCIE</small></div><div class="weather"><b></b><small></small></div>${button('Ⅱ','pause','hud-pause','aria-label="Pausar"')}`);
+    hud.dataset.ready='true';
+  }
+  const prologue=state.phase==='prologue';
+  const clockLabel=hud.querySelector('.clock-label'),clockTotal=hud.querySelector('.clock-total');
+  const setText=(node,value)=>{if(node.textContent!==value)node.textContent=value;};
+  setText(clockLabel,prologue?'PRÓLOGO':`DIA ${String(state.day).padStart(2,'0')}`);
+  clockTotal.hidden=prologue;
+  setText(hud.querySelector('.clock-value'),prologue?`00:${String(Math.ceil(state.prologue)).padStart(2,'0')}`:clock());
+  setText(hud.querySelector('.pocket strong'),money(p.cash));
+  const weatherName=`${state.weather.kind.toUpperCase()} · ${state.weather.temp}°`;
+  const services=`${state.services.power?'LUZ ✓':'LUZ ×'} · ${state.services.water?'ÁGUA ✓':'ÁGUA ×'}`;
+  setText(hud.querySelector('.weather b'),weatherName);
+  setText(hud.querySelector('.weather small'),services);
+  if(updateVitals(hud,p)){
+    const heart=hud.querySelector('[data-vital="health"]');
+    heart.animate([{opacity:1},{opacity:.58},{opacity:1}],{duration:260,easing:'steps(2,end)'});
+  }
   $('touch-attack').hidden=!Sim.nearestCombatTarget(state);
-  const prologue=state.phase==='prologue';$('countdown').hidden=!prologue||!!menu;
+  $('countdown').hidden=!prologue||!!menu;
   if(prologue)updateMarkup($('countdown'),`<span>A CONEXÃO TERMINA EM</span><strong class="${state.prologue<10?'urgent':''}">00:${String(Math.ceil(state.prologue)).padStart(2,'0')}</strong>`);
+  $('objectives').classList.toggle('prologue',prologue);
   const movementHelp=matchMedia('(pointer:coarse)').matches?'Joystick mover · ⇧ correr · E ação · ⚔ atacar':'WASD mover · Shift correr · E interagir · X atacar';
   updateMarkup($('objectives'),prologue?`<span class="eyebrow">OS ÚLTIMOS 30 SEGUNDOS</span><p class="${p.bank<150000?'done':''}">01 &nbsp; Saque dinheiro no banco →</p><p class="${state.stats.trades?'done':''}">02 &nbsp; Escolha reservas no mercado →</p><small>${movementHelp}</small>`:`<span class="eyebrow">${esc(Sim.arc(state))}</span><p>${state.town.fair?'A feira está funcionando.':state.day<6?'Cuide de hoje. Prepare o amanhã.':'Ajude a organizar a feira.'}</p><small>Confiança ${Math.round(state.town.trust)} · ${insideBuilding(p.x,p.y)?.name||'Santa Aurora'}</small>`);
   updateMarkup($('toolbar'),`<div class="toolbar-actions">${button('<kbd>I</kbd> Mochila','inventory')}${button('<kbd>M</kbd> Mapa','map')}${button('<kbd>J</kbd> Diário','journal')}${button('<kbd>B</kbd> Construir','build-menu')}${button(`<kbd>F</kbd> ${p.lantern?'Lanterna ligada':'Lanterna'}`,'lantern')}</div><div class="toolbar-right"><span>${Sim.load(state).toFixed(1)} / 22 kg</span><span>ESTRESSE ${Math.round(p.stress)} · EXPOSIÇÃO ${Math.round(p.exposure)}</span><span id="save-status">LOCAL</span></div>`);
