@@ -71,26 +71,13 @@ Os caminhos são relativos: o mesmo build pode ser servido na raiz ou no subdire
 
 O build gera metadados Open Graph e X Card no HTML estático, além da arte original `public/social-preview.png` (1200 × 630). O jogo oferece WhatsApp, X, Facebook, Telegram, LinkedIn, Reddit, Clipboard API com fallback e compartilhamento nativo quando disponível. Instagram não tem publicação automática pelo navegador; a arte pode ser baixada para compartilhamento manual.
 
-A URL padrão, inferida do remoto e do workflow de GitHub Pages deste repositório, está centralizada em `site.config.json`. Ela é uma configuração preparada, **não uma confirmação de que o site já foi publicado**. Se o domínio, proprietário ou subcaminho real for diferente, atualize esse arquivo ou configure a variável de repositório `APAGAO_PUBLIC_URL` nas GitHub Actions. O build exige HTTPS e produz as URLs absolutas finais para a página e a imagem; metadados sem placeholders são validados em `dist/index.html`.
+O endereço oficial e imutável para compartilhamento, URL canônica e metadados é `https://apagao.netlify.app/`, definido em `src/site-config.js`. Builds locais e espelhos servidos em outros domínios continuam compartilhando apenas o endereço oficial; variáveis de ambiente não podem substituí-lo. A imagem social publicada é `https://apagao.netlify.app/public/social-preview.png`.
 
-Para build local com outro endereço:
+Resultados de campanha são montados localmente a partir de estatísticas reais. A imagem pode ser salva ou enviada pela Web Share API com arquivo quando suportado; nenhum save é enviado a serviços externos. Instagram não oferece publicação automática pelo navegador. Pré-visualizações reais do WhatsApp e X dependem da leitura dos metadados públicos pelas próprias plataformas.
 
-```powershell
-$env:APAGAO_PUBLIC_URL='https://exemplo.com/jogo/'
-npm run build
-```
+## Workflow auxiliar de GitHub Pages
 
-Resultados de campanha são montados localmente a partir de estatísticas reais. A imagem pode ser salva ou enviada pela Web Share API com arquivo quando suportado; nenhum save é enviado a serviços externos. As prévias públicas de WhatsApp, X e Discord só poderão ser verificadas após uma publicação autorizada.
-
-## GitHub Pages — preparado, não publicado
-
-Não foram feitos commits, criado repositório remoto ou realizada publicação.
-
-1. Quando decidir publicar, crie ou escolha seu repositório e envie o projeto.
-2. Em Settings → Pages, selecione **GitHub Actions** como origem.
-3. Em Actions, execute manualmente **Publicar APAGÃO no GitHub Pages**.
-
-O workflow verifica sintaxe, executa testes, gera o build e publica `dist/`. Push na `main` executa a verificação e prepara um artefato; **deploy só ocorre por execução manual**. Isso preserva a exigência de autorização para publicação. A validação real na URL do GitHub Pages ainda está pendente.
+O workflow disponível pode publicar uma cópia auxiliar em GitHub Pages por execução manual. Ela não altera o domínio oficial, a URL canônica nem os links de compartilhamento. A publicação do site oficial na Netlify não é acionada por este workflow.
 
 ## Estrutura
 

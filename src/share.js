@@ -1,14 +1,14 @@
 import { SITE_URL } from './site-config.js';
 
-export const GAME_SHARE_TEXT = 'APAGÃO: 30 DIAS — Você conseguiria sobreviver sem internet? Jogue gratuitamente e descubra!';
-export const WHATSAPP_SHARE_TEXT = '🎮 APAGÃO: 30 DIAS\n\nA internet mundial acabou! 😱\n\nVocê tem só 30 segundos para se preparar e precisa sobreviver por 30 dias.\n\nSerá que você consegue?\n\n🌱 Plante, negocie, cuide dos seus recursos e sobreviva!';
+export const GAME_SHARE_TEXT = '🎮 APAGÃO: 30 DIAS\n\nA internet mundial acabou!\n\nVocê tem 30 segundos para se preparar e 30 dias para sobreviver.\n\n🌱 Plante, negocie, proteja sua casa e sobreviva.\n\nVocê consegue?';
+export const WHATSAPP_SHARE_TEXT = GAME_SHARE_TEXT;
 export const X_SHARE_TEXT = '🚨 A INTERNET MUNDIAL ACABOU!\n\nVocê tem 30 segundos para se preparar e 30 dias para sobreviver.\n\n🎮 APAGÃO: 30 DIAS — um jogo brasileiro de sobrevivência.\n\nSerá que você consegue?';
 
 export function platformShareUrl(platform, message) {
   const url = new URL(SITE_URL).href;
   const title = 'APAGÃO: 30 DIAS — Você consegue sobreviver?';
   const content = message??(platform==='whatsapp'?WHATSAPP_SHARE_TEXT:platform==='x'?X_SHARE_TEXT:GAME_SHARE_TEXT);
-  const cleanMessage=content.endsWith(`\n${url}`)?content.slice(0,-url.length-1):content;
+  const cleanMessage=content.replace(/https?:\/\/[^\s]+/gi,'').trim();
   const shareUrls = {
     whatsapp: `https://api.whatsapp.com/send?text=${encodeURIComponent(`${cleanMessage}\n\nJogue aqui:\n${url}`)}`,
     x: `https://twitter.com/intent/tweet?text=${encodeURIComponent(cleanMessage)}&url=${encodeURIComponent(url)}`,

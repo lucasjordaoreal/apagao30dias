@@ -5,7 +5,7 @@ import { Renderer, itemIcon } from './scenes/renderer.js';
 import { updateMarkup } from './ui/dom.js';
 import { Sound } from './systems/audio.js';
 import { saveGame, loadGame, exportSave, importSave } from './save/storage.js';
-import { SITE_URL, SOCIAL_IMAGE_URL } from './site-config.js';
+import { SITE_URL, SOCIAL_IMAGE_PATH } from './site-config.js';
 import { GAME_SHARE_TEXT, platformShareUrl, copyText, resultShareText, resultImage, imageFile } from './share.js';
 
 const $=id=>document.getElementById(id),canvas=$('world'),renderer=new Renderer(canvas),sound=new Sound(),joystick=$('joystick'),joystickKnob=$('joystick-knob');
@@ -53,7 +53,7 @@ function renderMenu(){
     return;
   }
   if(type==='share'){
-    panel('Compartilhe APAGÃO: 30 DIAS','Desafie seus amigos a sobreviverem 30 dias sem internet!',`<div class="share-preview"><img src="${esc(SOCIAL_IMAGE_URL)}" alt="Arte promocional de APAGÃO: 30 DIAS em pixel art"><div><strong>APAGÃO: 30 DIAS</strong><p>A internet mundial acabou. Prepare-se em 30 segundos e sobreviva por 30 dias.</p><a href="${esc(SITE_URL)}" target="_blank" rel="noopener noreferrer">${esc(SITE_URL)}</a></div></div><h3>COMPARTILHAR COM</h3><div class="share-grid">${[['WhatsApp','whatsapp'],['X / Twitter','x'],['Facebook','facebook'],['Telegram','telegram'],['LinkedIn','linkedin'],['Reddit','reddit']].map(([label,platform])=>button(label,`share-platform:${platform}`,'secondary')).join('')}</div><div class="share-actions">${button('Mais opções · compartilhar pelo dispositivo','share-native','primary')}${button('Copiar link','copy-link','secondary')}${button('Baixar imagem para compartilhar manualmente','download-preview','text-button')}</div><p class="muted share-note">O Instagram não oferece publicação automática pelo navegador. Use “Mais opções” quando disponível ou baixe a arte para publicar manualmente.</p>`);$('overlay').classList.add('share-overlay');return;
+    panel('Compartilhe APAGÃO: 30 DIAS','Desafie seus amigos a sobreviverem 30 dias sem internet!',`<div class="share-preview"><img src="${esc(SOCIAL_IMAGE_PATH)}" alt="Arte promocional de APAGÃO: 30 DIAS em pixel art" width="1200" height="630" decoding="async"><div><strong>APAGÃO: 30 DIAS</strong><p>A internet mundial acabou! Prepare-se em 30 segundos e sobreviva durante 30 dias neste jogo brasileiro de sobrevivência em Pixel Art.</p><a href="${esc(SITE_URL)}" target="_blank" rel="noopener noreferrer">${esc(SITE_URL)}</a></div></div><h3>COMPARTILHAR COM</h3><div class="share-grid">${[['WhatsApp','whatsapp'],['X / Twitter','x'],['Facebook','facebook'],['Telegram','telegram'],['LinkedIn','linkedin'],['Reddit','reddit']].map(([label,platform])=>button(label,`share-platform:${platform}`,'secondary')).join('')}</div><div class="share-actions">${button('Mais opções · compartilhar pelo dispositivo','share-native','primary')}${button('Copiar link','copy-link','secondary')}${button('Baixar imagem para compartilhar manualmente','download-preview','text-button')}</div><p class="muted share-note">O Instagram não oferece publicação automática pelo navegador. Use “Mais opções” quando disponível ou baixe a arte para publicar manualmente.</p>`);$('overlay').classList.add('share-overlay');$('overlay').querySelector('.share-preview img').addEventListener('error',()=>{const status=document.createElement('p');status.className='share-image-error';status.setAttribute('role','alert');status.textContent='A imagem promocional não carregou. Verifique sua conexão e tente novamente.';$('overlay').querySelector('.share-preview').append(status);},{once:true});return;
   }
   if(type==='share-result'){
     const dataUrl=resultImage(state);
@@ -167,8 +167,16 @@ async function shareNatively(withResult=false){
     notify(`Não foi possível compartilhar: ${error.message}`,'warning');
   }
 }
-function downloadImage(dataUrl,filename){
-  const link=document.createElement('a');link.href=dataUrl;link.download=filename;document.body.append(link);link.click();link.remove();
+async function downloadImage(source,filename){
+  const response=await fetch(source);
+  if(!response.ok)throw new Error(`O servidor respondeu ${response.status}.`);
+  const blob=await response.blob(),bytes=new Uint8Array(await blob.slice(0,8).arrayBuffer());
+  const png=blob.type==='image/png'&&[137,80,78,71,13,10,26,10].every((value,index)=>bytes[index]===value);
+  const jpeg=blob.type==='image/jpeg'&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
+  if(!png&&!jpeg)throw new Error('O arquivo recebido não é uma imagem PNG ou JPEG válida.');
+  const url=URL.createObjectURL(blob),link=document.createElement('a');
+  link.href=url;link.download=filename;document.body.append(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 async function action(act){
   sound.init();sound.click();const [a,b,c,d,e]=act.split(':');
@@ -181,8 +189,8 @@ async function action(act){
     const text=a==='share-result-platform'?resultShareText(state):GAME_SHARE_TEXT;
     window.open(platformShareUrl(b,text),'_blank','noopener,noreferrer');return;
   }
-  if(a==='download-preview'){downloadImage(SOCIAL_IMAGE_URL,'apagao-30-dias.png');notify('Arte promocional baixada.','success');return;}
-  if(a==='download-result'){downloadImage(resultImage(state),'apagao-resultado.png');notify('Imagem do resultado salva neste dispositivo.','success');return;}
+  if(a==='download-preview'){try{await downloadImage(SOCIAL_IMAGE_PATH,'apagao-30-dias.png');notify('Arte promocional baixada.','success');}catch(error){notify(`Não foi possível baixar a arte promocional: ${error.message}`,'warning');}return;}
+  if(a==='download-result'){try{await downloadImage(resultImage(state),'apagao-resultado.png');notify('Imagem do resultado salva neste dispositivo.','success');}catch(error){notify(`Não foi possível salvar a imagem do resultado: ${error.message}`,'warning');}return;}
   if(a==='new'){if(state&&['prologue','survival'].includes(state.phase))await persist();open('new');return;}
   if(a==='tutorial'){draft={mode:$('mode').value,seed:Math.max(0,Math.min(4294967295,Number($('seed').value)||0))>>>0};open('tutorial');return;}
   if(a==='begin'){if(saving)await saving;const fresh=Sim.createGame(draft.seed,draft.mode);try{await saveGame(fresh,{replace:true});saveUnavailable=false;saved=structuredClone(fresh);}catch(e){saveUnavailable=true;notify(`O salvamento falhou: ${e.message} A partida pode continuar; use Exportar progresso ou tente Salvar agora.`, 'warning');}state=fresh;saveConflict=false;noticeId=0;lastPhase='prologue';lastDay=1;autoAt=0;close();updateHUD();return;}

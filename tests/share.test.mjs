@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SITE_URL } from '../src/site-config.js';
-import { GAME_SHARE_TEXT, platformShareUrl, resultShareText, imageFile } from '../src/share.js';
+import { GAME_SHARE_TEXT, WHATSAPP_SHARE_TEXT, X_SHARE_TEXT, platformShareUrl, resultShareText, imageFile } from '../src/share.js';
 
-test('social share targets encode messages and use the single configured game URL',()=>{
-  const expected=new URL(SITE_URL).href;
+test('social share targets use only the explicit official game URL',()=>{
+  const expected='https://apagao.netlify.app/';
+  assert.equal(SITE_URL,expected);
   const targets={
     whatsapp:['api.whatsapp.com','/send','text'],
     x:['twitter.com','/intent/tweet','url'],
@@ -23,8 +24,18 @@ test('social share targets encode messages and use the single configured game UR
   const x=new URL(platformShareUrl('x'));
   assert.match(x.searchParams.get('text'),/30 segundos.*30 dias/s);
   assert.match(new URL(platformShareUrl('whatsapp')).searchParams.get('text'),/A internet mundial acabou!.*Plante/s);
+  assert.equal(WHATSAPP_SHARE_TEXT,GAME_SHARE_TEXT);
+  assert.match(GAME_SHARE_TEXT,/proteja sua casa/);
+  assert.match(X_SHARE_TEXT,/30 segundos.*30 dias/s);
   assert.throws(()=>platformShareUrl('unknown'),/desconhecida/);
   assert.equal(GAME_SHARE_TEXT.includes(expected),false);
+  for(const platform of Object.keys(targets)){
+    const url=new URL(platformShareUrl(platform,`Mensagem de resultado\nhttps://untrusted.invalid/`));
+    assert.doesNotMatch(url.href,/untrusted\.invalid/);
+    assert.ok(Object.values(Object.fromEntries(url.searchParams)).every(value=>!value.includes('untrusted.invalid')));
+    if(platform==='whatsapp')assert.ok(url.searchParams.get('text').includes(expected));
+    else assert.equal(url.searchParams.get(targets[platform][2]),expected);
+  }
 });
 
 test('result messages use campaign statistics and do not include save contents',()=>{

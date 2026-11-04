@@ -140,6 +140,7 @@ body{overscroll-behavior:none}
 .share-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:18px 0 8px}
 .share-actions .primary{grid-column:1/-1}
 .share-note{margin-top:12px}
+.share-image-error{margin:8px 0;color:#ffb5a5;font-size:12px;line-height:1.5}
 .result-share-image{display:block;width:100%;height:auto;max-height:42dvh;object-fit:contain;margin:0 auto 18px;border:1px solid #c6d5ae45;border-radius:3px}
 @keyframes share-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .share-overlay .panel{animation:share-enter .16s ease-out}
