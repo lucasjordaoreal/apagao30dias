@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" shape-rendering="crispEdges">
+  <defs>
+    <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#142526"/><stop offset="1" stop-color="#34493c"/></linearGradient>
+    <linearGradient id="shade"><stop stop-color="#142b2b" stop-opacity=".98"/><stop offset=".48" stop-color="#142b2b" stop-opacity=".9"/><stop offset=".78" stop-color="#142b2b" stop-opacity=".24"/><stop offset="1" stop-color="#142b2b" stop-opacity=".12"/></linearGradient>
+    <pattern id="stars" width="86" height="73" patternUnits="userSpaceOnUse"><rect x="14" y="12" width="3" height="3" fill="#d9c99a" opacity=".62"/><rect x="62" y="48" width="2" height="2" fill="#b9c9ad" opacity=".7"/></pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#sky)"/>
+  <rect width="1200" height="360" fill="url(#stars)"/>
+  <path d="M715 369h485v261H715z" fill="#253b32"/>
+  <path d="M705 490h495v50H705z" fill="#a4a898"/>
+  <path d="M762 332h153v158H762z" fill="#d0c29e"/>
+  <path d="m744 335 92-105 99 105v20H744z" fill="#985e4b"/>
+  <path d="M752 328h168v14H752zM771 350h137v9H771z" fill="#b97859"/>
+  <path d="M782 366h23v32h-23zM826 366h23v32h-23zM870 366h17v32h-17z" fill="#ddba6c"/>
+  <path d="M791 366h5v32h-5zM835 366h5v32h-5zM877 366h4v32h-4z" fill="#43594c"/>
+  <path d="M821 438h36v52h-36z" fill="#443d33"/>
+  <path d="M954 370h176v120H954z" fill="#cbbd98"/>
+  <path d="m936 372 105-83 110 83v17H936z" fill="#a96850"/>
+  <path d="M945 365h197v13H945zM966 396h35v34h-35zM1020 396h35v34h-35zM1075 396h35v34h-35z" fill="#d9b469"/>
+  <path d="M976 396h7v34h-7zM1030 396h7v34h-7zM1085 396h7v34h-7z" fill="#485d4d"/>
+  <path d="M1026 442h35v48h-35z" fill="#463f33"/>
+  <path d="M1131 326h9v164h-9zM1110 331h52v10h-52z" fill="#655c45"/>
+  <path d="M1138 285h42v43h-42zM1126 298h64v25h-64zM1145 268h27v19h-27z" fill="#536f49"/>
+  <path d="M1142 282h24v7h-24zM1133 301h31v8h-31z" fill="#759456"/>
+  <path d="M720 532h480v98H720z" fill="#334c3a"/>
+  <path d="M760 555h180v75H760z" fill="#6c5038"/>
+  <path d="M773 550h36v23h-36zM825 550h36v23h-36zM877 550h36v23h-36z" fill="#83975c"/>
+  <path d="M779 554h25v14h-25zM831 554h25v14h-25zM883 554h25v14h-25z" fill="#9cad6b"/>
+  <path d="M973 574h31v25h-31zM1031 573h29v26h-29zM1085 576h31v23h-31z" fill="#f1e7c7"/>
+  <path d="M974 570h29v7h-29zM1030 569h30v7h-30zM1084 572h31v7h-31z" fill="#b96f54"/>
+  <path d="M978 584h5v5h-5zM1034 583h5v5h-5zM1089 586h5v5h-5z" fill="#a17a52"/>
+  <path d="M709 600h491v30H709z" fill="#263e33"/>
+  <g transform="translate(1031 465)">
+    <ellipse cx="22" cy="48" rx="22" ry="5" fill="#172b28" opacity=".6"/>
+    <path d="M15 27h17v18H15z" fill="#628b79"/>
+    <path d="M16 11h15v17H16z" fill="#c79b6b"/>
+    <path d="M15 9h17v6H15z" fill="#554d39"/>
+    <path d="M19 18h3v3h-3zM27 18h3v3h-3z" fill="#273c34"/>
+    <path d="M17 44h5v8h-5zM27 44h5v8h-5z" fill="#313b32"/>
+  </g>
+  <path d="M0 0h1200v630H0z" fill="url(#shade)"/>
+  <path d="M70 90h7v7h-7z" fill="#e3b271"/>
+  <text x="92" y="98" fill="#cbd1b8" font-family="monospace" font-size="17" font-weight="700" letter-spacing="3">UM JOGO BRASILEIRO DE SOBREVIVÊNCIA</text>
+  <text x="64" y="286" fill="#0b201f" font-family="Impact, 'Arial Narrow', sans-serif" font-size="119" font-weight="900" letter-spacing="-3">APAGÃO:</text>
+  <text x="58" y="279" fill="#f0dfb8" font-family="Impact, 'Arial Narrow', sans-serif" font-size="119" font-weight="900" letter-spacing="-3">APAGÃO:</text>
+  <path d="M70 308h116v5H70z" fill="#e3b271"/>
+  <text x="69" y="371" fill="#e3b271" font-family="monospace" font-size="37" font-weight="700" letter-spacing="12">30 DIAS</text>
+  <text x="70" y="429" fill="#e8e4d1" font-family="Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="1">30 SEGUNDOS PARA SE PREPARAR.</text>
+  <text x="70" y="466" fill="#e8e4d1" font-family="Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="1">30 DIAS PARA SOBREVIVER.</text>
+  <path d="M70 515h8v8h-8zM89 515h8v8h-8zM108 515h8v8h-8z" fill="#d0bd8b"/>
+  <text x="131" y="524" fill="#c4cbb5" font-family="monospace" font-size="15" letter-spacing="2">EXPLORE · PLANTE · NEGOCIE · RESISTA</text>
+  <text x="70" y="588" fill="#93a48f" font-family="monospace" font-size="13" letter-spacing="2">SANTA AURORA, INTERIOR PAULISTA</text>
+</svg>

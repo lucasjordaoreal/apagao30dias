@@ -21,7 +21,7 @@ Este projeto começou em uma pasta vazia. A entrega é uma base integrada e jog�
 | Serviços e crise | Água e eletricidade independentes; clima sem eventos contraditórios; chuva enche reservatórios; eventos e visitante noturno percorrendo a rua até a porta. |
 | Segurança | Tranca, reforços, iluminação, conversa e vigilância. O visitante verifica proteção antes de uma oportunidade de furto. |
 | Comunidade | Confiança, abastecimento, segurança, verba e atividade econômica; feira condicionada à confiança e circulação de recursos entre produtores e comerciante. |
-| Apresentação | Arte pixel original em código, janelas noturnas, luz de lanterna, chuva, partículas, galinhas e plantas visíveis. Sons sintéticos. |
+| Apresentação | Arte pixel original em código, janelas noturnas, luz de lanterna, chuva, partículas, galinhas e plantas visíveis. Cartão social original, metadados estáticos Open Graph/X e botões para compartilhar e gerar cartões de resultados. Sons sintéticos. |
 | Preferências | Volume geral, ambiente e efeitos separados, redução de efeitos e escala de interface. Layout responsivo, joystick virtual direcional, corrida e ações de toque. |
 | Persistência/build | IndexedDB/fallback, save versionado, revisão de gravação, JSON validado, build relativo, cache offline e workflow de Pages com deploy manual. |
 
@@ -44,6 +44,7 @@ Este projeto começou em uma pasta vazia. A entrega é uma base integrada e jog�
 - Não foi feita uma campanha manual de cinco horas. Foi realizado um ensaio contínuo de 183 segundos no Edge automatizado, insuficiente para excluir problemas de longa duração. A estratégia automatizada de recursos não inclui o custo de todos os trajetos, nem todas as combinações de más decisões.
 - Save/importação não são mecanismo antitrapaça criptográfico. Há uma campanha por origem. Gravações concorrentes usam revisão, identificador único, transação e, quando disponível, Web Locks; a aba desatualizada pausa e oferece exportação ou carregamento explícito. Uma cópia anterior válida pode ser recuperada, preservando o registro danificado.
 - GitHub Pages foi preparado, mas não publicado nem verificado em URL remota. O cache foi exercitado por teste automatizado e no navegador real: instalação, desligamento do servidor local, recarregamento, continuação e mapa funcionaram. Não foi alterada a conexão física do computador.
+- A URL de Pages padrão foi derivada do remoto Git e do workflow, mas não foi confirmada como endereço público ativo. Os robôs de WhatsApp, X, Facebook e Discord, bem como Safari/iOS, Android e destinatários nativos de arquivos, ainda precisam de verificação em publicação/dispositivos reais.
 
 Os próximos passos prioritários são ampliar eventos e rotinas, aprofundar conservação e água, testar as rotas e o balanceamento com deslocamento real e conduzir partidas manuais longas antes de polir áudio, arte e finais.
 

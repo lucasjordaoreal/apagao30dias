@@ -2,7 +2,7 @@
 
 ## Resultado automatizado
 
-`npm run check` passou. `npm test` passou com **50 testes**, sem falhas. `npm run build` gera `dist/` com caminhos relativos e Service Worker versionado por conteúdo.
+`npm run check` passou. `npm test` passou com **54 testes**, sem falhas. `npm run build` gera `dist/` com caminhos relativos e Service Worker versionado por conteúdo.
 
 Cobertura de regras:
 
@@ -86,3 +86,10 @@ npm run test:production
 - Percurso somente por toque no prólogo: joystick/corrida até o caixa, saque de R$ 1.500, movimento até o comércio e compra de mantimento; concluído em cerca de cinco segundos, com mais de 25 segundos restantes e sem erros.
 - Screenshots gerados e examinados em 320 × 568, 390 × 844, 768 × 1024, 844 × 390 e 2560 × 1440.
 - A emulação não substitui testes em aparelhos físicos; Safari iOS e Android reais ainda precisam ser validados.
+
+## Compartilhamento social
+
+- `npm test` também valida os seis destinos externos, codificação da URL única, mensagens de resultado sem conteúdo do save, montagem do PNG de campanha e metadados presentes no HTML de produção. O cache offline inclui a imagem e o módulo de compartilhamento.
+- O build valida a assinatura, dimensões 1200 × 630 e presença da arte social. A suíte de navegador `npm run test:sharing` verifica prévia e MIME local, Clipboard API/fallback/falha, chamadas nativas e cancelamento com APIs simuladas, links de plataformas, foco/modal, proporção e limites em 320 × 568, pausa do prólogo, download de resultado e arquivo enviado ao mock de Web Share.
+- A URL canônica padrão está centralizada em `site.config.json`; `APAGAO_PUBLIC_URL` substitui a configuração no build e nas GitHub Actions. Não foi verificado um deploy, nem acessibilidade pública da imagem via HTTPS; as prévias reais de WhatsApp, X, Discord e Facebook Sharing Debugger permanecem pendentes.
+- A arte PNG inclui fonte SVG original em `public/social-preview.svg`. O cartão de resultado é desenhado no cliente com dinheiro restante, pessoas ajudadas, colheitas, ovos e dias efetivamente completos, sem upload do save.

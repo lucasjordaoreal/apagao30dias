@@ -64,6 +64,21 @@ npm start
 
 Os caminhos são relativos: o mesmo build pode ser servido na raiz ou no subdiretório de um repositório. Uma atualização de Service Worker aguarda as abas antigas encerrarem antes de substituir sua versão. Não há download de arquivos externos durante a partida.
 
+## Compartilhamento social
+
+O build gera metadados Open Graph e X Card no HTML estático, além da arte original `public/social-preview.png` (1200 × 630). O jogo oferece WhatsApp, X, Facebook, Telegram, LinkedIn, Reddit, Clipboard API com fallback e compartilhamento nativo quando disponível. Instagram não tem publicação automática pelo navegador; a arte pode ser baixada para compartilhamento manual.
+
+A URL padrão, inferida do remoto e do workflow de GitHub Pages deste repositório, está centralizada em `site.config.json`. Ela é uma configuração preparada, **não uma confirmação de que o site já foi publicado**. Se o domínio, proprietário ou subcaminho real for diferente, atualize esse arquivo ou configure a variável de repositório `APAGAO_PUBLIC_URL` nas GitHub Actions. O build exige HTTPS e produz as URLs absolutas finais para a página e a imagem; metadados sem placeholders são validados em `dist/index.html`.
+
+Para build local com outro endereço:
+
+```powershell
+$env:APAGAO_PUBLIC_URL='https://exemplo.com/jogo/'
+npm run build
+```
+
+Resultados de campanha são montados localmente a partir de estatísticas reais. A imagem pode ser salva ou enviada pela Web Share API com arquivo quando suportado; nenhum save é enviado a serviços externos. As prévias públicas de WhatsApp, X e Discord só poderão ser verificadas após uma publicação autorizada.
+
 ## GitHub Pages — preparado, não publicado
 
 Não foram feitos commits, criado repositório remoto ou realizada publicação.

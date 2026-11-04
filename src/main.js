@@ -5,14 +5,17 @@ import { Renderer, itemIcon } from './scenes/renderer.js';
 import { updateMarkup } from './ui/dom.js';
 import { Sound } from './systems/audio.js';
 import { saveGame, loadGame, exportSave, importSave } from './save/storage.js';
+import { SITE_URL, SOCIAL_IMAGE_URL } from './site-config.js';
+import { GAME_SHARE_TEXT, platformShareUrl, copyText, resultShareText, resultImage, imageFile } from './share.js';
 
 const $=id=>document.getElementById(id),canvas=$('world'),renderer=new Renderer(canvas),sound=new Sound(),joystick=$('joystick'),joystickKnob=$('joystick-knob');
 const money=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v/100);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icon=Object.fromEntries(Object.keys(ITEMS).map(k=>[k,itemIcon(k)]));
 const button=(text,act,cls='',extra='')=>`<button class="${cls}" data-act="${act}" ${extra}>${text}</button>`;
+const shareIcon='<svg class="share-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a3 3 0 1 0-2.83-4H15a3 3 0 0 0 .11.8L8.9 8.42a3 3 0 1 0 0 5.16l6.21 3.62a3 3 0 1 0 .99-1.7L9.9 11.88a3 3 0 0 0 0-1.76l6.2-3.62A3 3 0 0 0 18 8Z" fill="currentColor"/></svg>';
 const itemImg=id=>`<img class="item-icon" src="${icon[id]}" alt="">`;
-let state=null,saved=null,menu={type:'title'},keys=new Set(),placement=null,last=performance.now(),hudAt=0,autoAt=0,noticeId=0,lastPhase='',saving=null,lastDay=1,saveConflict=false,saveUnavailable=false,menuAt=0;
+let state=null,saved=null,menu={type:'title'},keys=new Set(),placement=null,last=performance.now(),hudAt=0,autoAt=0,noticeId=0,lastPhase='',saving=null,lastDay=1,saveConflict=false,saveUnavailable=false,menuAt=0,shareReturnMenu='title',shareReturnAct=null;
 const touchInputs=new Map();let joystickPointer=null;
 function clearInputs(){
   keys.clear();touchInputs.clear();joystickPointer=null;joystickKnob.style.transform='translate(-50%, -50%)';
@@ -32,7 +35,11 @@ function notify(text,type='info'){
   const div=document.createElement('div');div.className=`notice ${type}`;div.textContent=text;$('notifications').append(div);setTimeout(()=>div.remove(),6500);while($('notifications').children.length>4)$('notifications').firstChild.remove();if(type==='danger'||type==='warning')sound.alert();
 }
 function apply(result){if(result){notify(result.message,result.ok?'success':'warning');sound.click();}if(menu)renderMenu();updateHUD();}
-function open(type,id=null){clearInputs();if(state)state.paused=['pause','settings','help','credits','confirm-new','new','tutorial'].includes(type);menu={type,id};renderMenu();$('overlay').querySelector('button:not(:disabled)')?.focus({preventScroll:true});}
+function open(type,id=null){
+  if(type==='share'||type==='share-result'){shareReturnMenu=menu?.type||(state?'pause':'title');shareReturnAct=document.activeElement?.dataset.act||null;}
+  clearInputs();if(state)state.paused=['pause','settings','help','credits','confirm-new','new','tutorial','share','share-result'].includes(type);menu={type,id};renderMenu();$('overlay').querySelector('button:not(:disabled)')?.focus({preventScroll:true});
+}
+function returnFromShare(){const type=shareReturnMenu,act=shareReturnAct;open(type);if(act)$('overlay').querySelector(`[data-act="${act}"]`)?.focus({preventScroll:true});}
 function close(){if(saveConflict){open('pause');return;}menu=null;updateMarkup($('overlay'),'');$('overlay').className='';if(state)state.paused=false;clearInputs();last=performance.now();updateHUD();canvas.focus({preventScroll:true});}
 function panel(title,subtitle,content,wide=false){
   $('overlay').className=`overlay panel-overlay ${wide?'wide':''}`;
@@ -42,8 +49,15 @@ function renderMenu(){
   if(!menu)return;const {type,id}=menu;
   if(type==='title'){
     $('overlay').className='overlay title-overlay';
-    updateMarkup($('overlay'),`<section class="title-layout"><div class="brand-top"><span class="brand-mark">A / 30</span><span>UM JOGO DE SOBREVIVÊNCIA BRASILEIRO</span></div><div class="title-copy"><div class="eyebrow">SANTA AURORA, SÃO PAULO — 2026</div><h1>APAGÃO<span>30 DIAS</span></h1><div class="title-rule"></div><p>Trinta segundos para se preparar.<br>Trinta dias para descobrir do que você é capaz.</p><div class="title-actions">${button('Nova história <span>↗</span>','new','primary')}${button(saved?`Continuar · dia ${saved.day}`:'Continuar','continue','secondary',saved?'':'disabled')}${button('Como jogar','help','text-button')}${button('Configurações','settings','text-button')}</div></div><footer class="title-footer"><span>SEM CONEXÃO. AINDA HUMANOS.</span><span>INCREMENTO JOGÁVEL 0.1 · ${button('Créditos','credits','inline')}</span></footer><div class="scene-caption"><span class="dot"></span> Santa Aurora <small>Uma cidade pequena. Escolhas que ficam.</small></div></section>`);
+    updateMarkup($('overlay'),`<section class="title-layout"><div class="brand-top"><span class="brand-mark">A / 30</span><span>UM JOGO DE SOBREVIVÊNCIA BRASILEIRO</span></div><div class="title-copy"><div class="eyebrow">SANTA AURORA, SÃO PAULO — 2026</div><h1>APAGÃO<span>30 DIAS</span></h1><div class="title-rule"></div><p>Trinta segundos para se preparar.<br>Trinta dias para descobrir do que você é capaz.</p><div class="title-actions">${button('Nova história <span>↗</span>','new','primary')}${button(saved?`Continuar · dia ${saved.day}`:'Continuar','continue','secondary',saved?'':'disabled')}${button('Como jogar','help','text-button')}${button(`${shareIcon}<span>Compartilhar jogo</span>`,'share','text-button share-title-action')}${button('Configurações','settings','text-button')}</div></div><footer class="title-footer"><span>SEM CONEXÃO. AINDA HUMANOS.</span><span>INCREMENTO JOGÁVEL 0.1 · ${button('Créditos','credits','inline')}</span></footer><div class="scene-caption"><span class="dot"></span> Santa Aurora <small>Uma cidade pequena. Escolhas que ficam.</small></div></section>`);
     return;
+  }
+  if(type==='share'){
+    panel('Compartilhe APAGÃO: 30 DIAS','Desafie seus amigos a sobreviverem 30 dias sem internet!',`<div class="share-preview"><img src="${esc(SOCIAL_IMAGE_URL)}" alt="Arte promocional de APAGÃO: 30 DIAS em pixel art"><div><strong>APAGÃO: 30 DIAS</strong><p>A internet mundial acabou. Prepare-se em 30 segundos e sobreviva por 30 dias.</p><a href="${esc(SITE_URL)}" target="_blank" rel="noopener noreferrer">${esc(SITE_URL)}</a></div></div><h3>COMPARTILHAR COM</h3><div class="share-grid">${[['WhatsApp','whatsapp'],['X / Twitter','x'],['Facebook','facebook'],['Telegram','telegram'],['LinkedIn','linkedin'],['Reddit','reddit']].map(([label,platform])=>button(label,`share-platform:${platform}`,'secondary')).join('')}</div><div class="share-actions">${button('Mais opções · compartilhar pelo dispositivo','share-native','primary')}${button('Copiar link','copy-link','secondary')}${button('Baixar imagem para compartilhar manualmente','download-preview','text-button')}</div><p class="muted share-note">O Instagram não oferece publicação automática pelo navegador. Use “Mais opções” quando disponível ou baixe a arte para publicar manualmente.</p>`);$('overlay').classList.add('share-overlay');return;
+  }
+  if(type==='share-result'){
+    const dataUrl=resultImage(state);
+    panel('Compartilhe seu resultado','Uma lembrança desta campanha, com estatísticas reais da partida.',`<img class="result-share-image" src="${dataUrl}" alt="Cartão de resultado desta campanha, gerado localmente"><div class="share-actions">${button('Compartilhar resultado','share-result-native','primary')}${button('Copiar link do jogo','copy-link','secondary')}${button('Salvar imagem do resultado','download-result','secondary')}</div><h3>OU COMPARTILHE COM</h3><div class="share-grid">${[['WhatsApp','whatsapp'],['X / Twitter','x'],['Facebook','facebook'],['Telegram','telegram'],['LinkedIn','linkedin'],['Reddit','reddit']].map(([label,platform])=>button(label,`share-result-platform:${platform}`,'secondary')).join('')}</div><p class="muted share-note">A imagem é criada neste dispositivo; nenhum save ou dado pessoal é enviado a um servidor.</p>`,true);$('overlay').classList.add('share-overlay');return;
   }
   if(type==='new'){
     panel('Uma cidade. Trinta dias.','Escolha o ritmo do desafio. A duração é igual em todos os modos.',`<div class="new-art"><span>06:00</span><p>Você acorda com uma última mensagem.<br><b>“Prepare-se imediatamente.”</b></p></div><label class="field">Dificuldade<select id="mode">${Object.entries(MODES).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join('')}</select></label><p class="muted">Normal: primeira campanha. Difícil: estoques menores e maior consumo. Simulação: maior demanda de recursos, mantendo as simplificações documentadas.</p><label class="field">Semente da cidade<input id="seed" type="number" min="0" max="4294967295" value="${Date.now()>>>0}"></label><p class="muted">A mesma semente e as mesmas decisões reproduzem os acontecimentos.</p>${button('Conhecer os controles →','tutorial','primary full')}`,true);return;
@@ -61,7 +75,7 @@ function renderMenu(){
     panel('Feito para um mundo offline','APAGÃO: 30 DIAS · incremento 0.1',`<div class="guide"><h3>Santa Aurora é fictícia</h3><p>Uma história alternativa sobre recursos, vínculos e escolhas. Desligar a internet não derruba automaticamente a eletricidade ou a rede de água.</p><h3>Arte e som originais</h3><p>Pixel art desenhada em código e áudio sintetizado com Web Audio. Sem fontes, imagens, músicas ou serviços externos durante a partida.</p><h3>Referências de simulação</h3><p>Ministério da Saúde: cuidados com água para consumo humano. Embrapa: hortaliças e produção de ovos. Fontes, valores e simplificações estão em docs/REFERENCIAS.md.</p><p>Esta versão já permite uma campanha com sistemas integrados. O acabamento e a profundidade ainda estão em desenvolvimento.</p></div>`);return;
   }
   if(type==='pause'){
-    panel('Um momento de silêncio',`Dia ${String(state.day).padStart(2,'0')} · ${clock()} · ${esc(Sim.arc(state))}`,` ${saveConflict?`<div class="callout warning"><p>Outra aba salvou uma versão diferente. Exporte esta partida antes de carregar o progresso mais recente.</p>${button('Carregar progresso mais recente','continue','secondary full')}</div>`:''}<div class="pause-summary"><div><strong>${money(state.player.cash)}</strong><span>em espécie</span></div><div><strong>${Math.round(state.town.trust)} / 100</strong><span>confiança</span></div><div><strong>${Math.floor(state.activeTime/60)} min</strong><span>tempo ativo</span></div></div><div class="menu-stack">${button('Retomar a história','close','primary')}${button('Salvar agora','save','secondary')}${button('Exportar progresso · JSON','export','secondary')}${button('Importar progresso','import','secondary')}${button('Configurações','settings','secondary')}${button('Como jogar','help','secondary')}${button('Voltar ao início · salvar e sair','title','text-button')}</div><p class="muted">Salvamento automático a cada 20 segundos ativos. O navegador pode apagar dados locais; exporte uma cópia para guardar o progresso.</p>`);return;
+    panel('Um momento de silêncio',`Dia ${String(state.day).padStart(2,'0')} · ${clock()} · ${esc(Sim.arc(state))}`,` ${saveConflict?`<div class="callout warning"><p>Outra aba salvou uma versão diferente. Exporte esta partida antes de carregar o progresso mais recente.</p>${button('Carregar progresso mais recente','continue','secondary full')}</div>`:''}<div class="pause-summary"><div><strong>${money(state.player.cash)}</strong><span>em espécie</span></div><div><strong>${Math.round(state.town.trust)} / 100</strong><span>confiança</span></div><div><strong>${Math.floor(state.activeTime/60)} min</strong><span>tempo ativo</span></div></div><div class="menu-stack">${button('Retomar a história','close','primary')}${button('Salvar agora','save','secondary')}${button(`${shareIcon}<span>Compartilhar jogo</span>`,'share','secondary share-button')}${button('Exportar progresso · JSON','export','secondary')}${button('Importar progresso','import','secondary')}${button('Configurações','settings','secondary')}${button('Como jogar','help','secondary')}${button('Voltar ao início · salvar e sair','title','text-button')}</div><p class="muted">Salvamento automático a cada 20 segundos ativos. O navegador pode apagar dados locais; exporte uma cópia para guardar o progresso.</p>`);return;
   }
   if(type==='inventory'||type==='storage'){
     const storage=type==='storage';
@@ -124,7 +138,7 @@ function renderMenu(){
   }
   if(type==='ending'){
     const won=state.phase==='won';
-    panel(won?state.ending:'A cidade continua. Sua história termina.',won?'Trinta dias se passaram. O mundo não voltou ao que era. Mas você continua aqui.':`Causa: ${esc(state.deathCause)}`,`<div class="ending-banner">${won?'UM NOVO AMANHECER':'O ÚLTIMO SILÊNCIO'}</div><div class="stats-grid">${Object.entries({'Dias completos':won?30:state.day-1,'Tempo ativo':`${Math.floor(state.activeTime/60)} min`,'Porções consumidas':state.stats.food,'Água usada (L)':state.stats.water,'Dinheiro restante':money(state.player.cash+state.house.safeCash),'Negociações':state.stats.trades,'Pessoas ajudadas':state.stats.helped,'Galinhas criadas':state.stats.chickens,'Ovos produzidos':state.stats.eggs,'Colheitas':state.stats.harvests,'Ocorrências':state.stats.events,'Reputação':Math.round(state.town.trust)}).map(([k,v])=>`<div><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div><div class="menu-stack">${button('Exportar esta história','export','secondary')}${button('Começar outra história','new','primary')}${button('Voltar ao início','title','text-button')}</div>`,true);return;
+    panel(won?state.ending:'A cidade continua. Sua história termina.',won?'Trinta dias se passaram. O mundo não voltou ao que era. Mas você continua aqui.':`Causa: ${esc(state.deathCause)}`,`<div class="ending-banner">${won?'UM NOVO AMANHECER':'O ÚLTIMO SILÊNCIO'}</div><div class="stats-grid">${Object.entries({'Dias completos':won?30:state.day-1,'Tempo ativo':`${Math.floor(state.activeTime/60)} min`,'Porções consumidas':state.stats.food,'Água usada (L)':state.stats.water,'Dinheiro restante':money(state.player.cash+state.house.safeCash),'Negociações':state.stats.trades,'Pessoas ajudadas':state.stats.helped,'Galinhas criadas':state.stats.chickens,'Ovos produzidos':state.stats.eggs,'Colheitas':state.stats.harvests,'Ocorrências':state.stats.events,'Reputação':Math.round(state.town.trust)}).map(([k,v])=>`<div><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div><div class="menu-stack">${button('Compartilhar resultado','share-result','primary')}${button(`${shareIcon}<span>Compartilhar jogo</span>`,'share','secondary share-button')}${button('Exportar esta história','export','secondary')}${button('Começar outra história','new','secondary')}${button('Voltar ao início','title','text-button')}</div>`,true);return;
   }
 }
 function controls(){return `<div class="controls"><div><kbd>W A S D</kbd><span>mover</span></div><div><kbd>SHIFT</kbd><span>correr</span></div><div><kbd>E</kbd><span>interagir</span></div><div><kbd>I</kbd><span>mochila</span></div><div><kbd>M</kbd><span>mapa</span></div><div><kbd>J</kbd><span>diário</span></div><div><kbd>B</kbd><span>construir</span></div><div><kbd>F</kbd><span>lanterna</span></div><div><kbd>ESC</kbd><span>pausar</span></div></div><p class="touch-help">No celular: mova pelo joystick, segure ⇧ para correr, use E para a ação próxima e ▣ para abrir a mochila.</p>`;}
@@ -135,9 +149,36 @@ async function persist(manual=false){
   saving=(async()=>{try{const write=saveGame(snapshot,{replace:saveUnavailable});await write;saveUnavailable=false;target.saveRevision=Math.max(target.saveRevision,snapshot.saveRevision);target.saveToken=snapshot.saveToken;if(state===target)saved=snapshot;if(manual)notify('Progresso salvo neste navegador.','success');return true;}catch(e){if(e.name==='SaveConflict'){saveConflict=true;open('pause');}notify(e.message,'warning');return false;}})();
   const result=await saving;saving=null;return result;
 }
+async function shareNatively(withResult=false){
+  if(!navigator.share){notify('O compartilhamento nativo não está disponível neste navegador. Use as redes sociais ou copie o link.','warning');return;}
+  const text=withResult?resultShareText(state).replace(`\n${SITE_URL}`,''):GAME_SHARE_TEXT;
+  const data={title:'APAGÃO: 30 DIAS',text,url:SITE_URL};
+  try{
+    if(withResult){const file=imageFile(resultImage(state));if(navigator.canShare?.({files:[file]}))data.files=[file];}
+    await navigator.share(data);notify('Compartilhamento concluído.','success');
+  }
+  catch(error){
+    if(error.name==='AbortError'){notify('Compartilhamento cancelado.');return;}
+    if(error.name==='NotAllowedError'){notify('O navegador bloqueou o compartilhamento. Tente copiar o link.','warning');return;}
+    notify(`Não foi possível compartilhar: ${error.message}`,'warning');
+  }
+}
+function downloadImage(dataUrl,filename){
+  const link=document.createElement('a');link.href=dataUrl;link.download=filename;document.body.append(link);link.click();link.remove();
+}
 async function action(act){
   sound.init();sound.click();const [a,b,c,d,e]=act.split(':');
-  if(a==='close'){if(!state){open('title');return;}if(['won','dead'].includes(state.phase)){open('ending');return;}if(menu?.type==='tutorial'){open('new');return;}close();return;}
+  if(a==='close'){if(menu?.type==='share'||menu?.type==='share-result'){returnFromShare();return;}if(!state){open('title');return;}if(['won','dead'].includes(state.phase)){open('ending');return;}if(menu?.type==='tutorial'){open('new');return;}close();return;}
+  if(a==='share'||a==='share-result'){open(a);return;}
+  if(a==='copy-link'){try{await copyText(SITE_URL);notify('Link copiado.','success');}catch(error){notify(error.message,'warning');}return;}
+  if(a==='share-native'){await shareNatively();return;}
+  if(a==='share-result-native'){await shareNatively(true);return;}
+  if(a==='share-platform'||a==='share-result-platform'){
+    const text=a==='share-result-platform'?resultShareText(state):GAME_SHARE_TEXT;
+    window.open(platformShareUrl(b,text),'_blank','noopener,noreferrer');return;
+  }
+  if(a==='download-preview'){downloadImage(SOCIAL_IMAGE_URL,'apagao-30-dias.png');notify('Arte promocional baixada.','success');return;}
+  if(a==='download-result'){downloadImage(resultImage(state),'apagao-resultado.png');notify('Imagem do resultado salva neste dispositivo.','success');return;}
   if(a==='new'){if(state&&['prologue','survival'].includes(state.phase))await persist();open('new');return;}
   if(a==='tutorial'){draft={mode:$('mode').value,seed:Math.max(0,Math.min(4294967295,Number($('seed').value)||0))>>>0};open('tutorial');return;}
   if(a==='begin'){if(saving)await saving;const fresh=Sim.createGame(draft.seed,draft.mode);try{await saveGame(fresh,{replace:true});saveUnavailable=false;saved=structuredClone(fresh);}catch(e){saveUnavailable=true;notify(`O salvamento falhou: ${e.message} A partida pode continuar; use Exportar progresso ou tente Salvar agora.`, 'warning');}state=fresh;saveConflict=false;noticeId=0;lastPhase='prologue';lastDay=1;autoAt=0;close();updateHUD();return;}
@@ -228,7 +269,7 @@ document.addEventListener('keydown',e=>{
   let key=e.key.toLowerCase();const arrows={arrowup:'w',arrowdown:'s',arrowleft:'a',arrowright:'d'};key=arrows[key]||key;
   if(['w','a','s','d',' ','escape','shift'].includes(key))e.preventDefault();
   if(e.repeat)return;
-  if(key==='escape'){if(state&&['won','dead'].includes(state.phase)){open('ending');return;}if(placement){placement=null;renderer.place=null;notify('Construção cancelada.');return;}if(menu){if(state&&menu.type==='pause')close();else if(state)open('pause');else open('title');}else if(state)open('pause');return;}
+  if(key==='escape'){if(menu?.type==='share'||menu?.type==='share-result'){returnFromShare();return;}if(state&&['won','dead'].includes(state.phase)){open('ending');return;}if(placement){placement=null;renderer.place=null;notify('Construção cancelada.');return;}if(menu){if(state&&menu.type==='pause')close();else if(state)open('pause');else open('title');}else if(state)open('pause');return;}
   if(menu||saveConflict)return;
   keys.add(key);
   const shortcuts={e:'interact',i:'inventory',m:'map',j:'journal',b:'build-menu',f:'lantern'};if(shortcuts[key])action(shortcuts[key]);
